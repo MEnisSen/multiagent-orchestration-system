@@ -1,0 +1,38 @@
+# Base Haystack Agent System Requirements
+
+# Core Haystack framework
+haystack-ai>=2.0.0
+
+# LLM providers
+openai>=1.0.0
+
+# Web search capabilities
+requests>=2.25.0
+
+# Document processing and embeddings
+sentence-transformers>=2.2.0
+
+# Optional: Enhanced web search
+# Uncomment if using SerperDev web search
+# serper-python
+
+# Optional: Document stores
+# Uncomment based on your document store needs
+# faiss-cpu  # For FAISS document store
+# elasticsearch>=8.0.0  # For Elasticsearch document store
+# pinecone-client  # For Pinecone vector store
+
+# Optional: Additional tools
+# datasets  # For loading example datasets
+# beautifulsoup4  # For HTML parsing
+# pandas  # For data processing
+# numpy  # For numerical operations
+
+# Development dependencies (optional)
+# pytest>=7.0.0
+# black>=22.0.0
+# flake8>=4.0.0
+# mypy>=0.950
+
+fastapi
+uvicorn

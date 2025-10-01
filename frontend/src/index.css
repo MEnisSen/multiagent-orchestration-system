@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for the agent demo */
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans;
+  }
+}
+
+@layer components {
+  .agent-card {
+    @apply rounded-2xl shadow-lg p-6 bg-white border-2 transition-all duration-200;
+  }
+  
+  .agent-card:hover {
+    @apply shadow-xl scale-105;
+  }
+  
+  .message-arrow {
+    @apply stroke-2 transition-all duration-300;
+  }
+  
+  .message-arrow:hover {
+    @apply stroke-[4] drop-shadow-lg;
+  }
+  
+  .tooltip {
+    @apply absolute z-50 p-3 bg-gray-800 text-white text-sm rounded-lg shadow-lg max-w-sm;
+  }
+  
+  .json-block {
+    @apply bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-xs overflow-auto max-h-96;
+  }
+  
+  .control-button {
+    @apply px-6 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md;
+  }
+  
+  .control-button:hover {
+    @apply shadow-lg scale-105;
+  }
+  
+  .status-indicator {
+    @apply w-3 h-3 rounded-full inline-block mr-2;
+  }
+}

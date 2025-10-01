@@ -1,0 +1,85 @@
+# =============================
+# Global ignores
+# =============================
+*.DS_Store
+*.swp
+*.swo
+*.log
+*.tmp
+*.temp
+
+# Editor/IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# =============================
+# Python
+# =============================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.dmypy.json
+.pyre/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# =============================
+# Node / Frontend
+# =============================
+frontend/node_modules/
+frontend/dist/
+node_modules/
+dist/
+
+# Vite cache
+frontend/.vite/
+.vite/
+
+# =============================
+# Project-specific
+# =============================
+# Workspace where agents write temp files, tests, and artifacts
+.agent_workspace/
+
+# Generated artifacts or temp
+*.bak
+*.orig
+
+# =============================
+# Environment / Secrets
+# =============================
+# Never commit API keys or tokens
+.env
+.env.*
+!.env.example
+
+# Frontend env files
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# npm/yarn auth files
+.npmrc
+.npmrc.*
+.yarnrc
+.yarnrc.*
+
+# Python auth/config
+.pypirc
+.python-version
+
+
