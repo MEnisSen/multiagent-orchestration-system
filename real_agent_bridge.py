@@ -66,7 +66,7 @@ def initialize_agents():
 # Message conversion functions are now in programmatic_agent_runner.py
 
 def run_agent_workflow(prompt: str):
-    """Run the actual agent workflow in a separate thread."""
+    """Run the actual agent workflow in a separate thread, streaming updates."""
     global workflow_status, current_conversation, messages_store, tasks_store, workflow_running, current_task_index
     
     try:
@@ -81,59 +81,80 @@ def run_agent_workflow(prompt: str):
         
         print(f"🚀 Starting agent workflow with prompt: {prompt}")
         
-        # Run the actual agent workflow programmatically
-        if agents_dict:
-            workflow_status = "coding"
+        if not agents_dict:
+            print("❌ No agents available")
+            workflow_status = "error"
+            return
+        
+        # Initialize conversation with the user's prompt and stream immediately
+        messages = [{"role": "user", "content": prompt}]
+        current_conversation.extend(messages)
+        messages_store.extend(extract_agent_communications(messages))
+        
+        # Begin workflow
+        workflow_status = "coding"
+        current_agent_name = "Orchestrator Agent"
+        iterations = 0
+        max_iterations = 30
+        no_handoff_count = 0
+        
+        while iterations < max_iterations:
+            agent = agents_dict.get(current_agent_name)
+            if not agent:
+                print(f"❌ Agent not found: {current_agent_name}")
+                break
             
-            # Use the programmatic runner
-            conversation_history = run_agent_workflow_programmatic(
-                agents=agents_dict,
-                initial_prompt=prompt,
-                starting_agent_name="Orchestrator Agent",
-                max_iterations=15
-            )
+            # Run agent step
+            next_agent_name, new_messages = agent.run(messages)
             
-            # Store the raw conversation
-            current_conversation = conversation_history
+            # Update buffers
+            messages.extend(new_messages)
+            current_conversation.extend(new_messages)
             
-            # Convert to frontend format
-            frontend_messages = extract_agent_communications(conversation_history)
-            messages_store.extend(frontend_messages)
-            
-            # Extract tasks from conversation
-            extracted_tasks = extract_tasks_from_messages(conversation_history)
-            tasks_store.extend(extracted_tasks)
-            
-            # Update task progress based on workflow
-            if len(tasks_store) > 0:
-                # Mark first task as completed (planning)
-                tasks_store[0]["status"] = "completed"
-                current_task_index = 1
+            # Stream new messages to frontend immediately
+            for msg in new_messages:
+                msgs = extract_agent_communications([msg])
+                messages_store.extend(msgs)
                 
-                # If we have evidence of coding activity, mark coding tasks as completed
-                if any("create_function" in str(msg) or "fix_function" in str(msg) for msg in conversation_history):
+                # Incrementally try to extract tasks and keep a compact unique list
+                extracted = extract_tasks_from_messages([msg])
+                for t in extracted:
+                    if not any(existing.get("description") == t.get("description") for existing in tasks_store):
+                        tasks_store.append(t)
+                
+                # Heuristic progress updates
+                if "create_function" in str(msg) or "fix_function" in str(msg):
+                    if len(tasks_store) > 0:
+                        tasks_store[0]["status"] = "completed"
+                        current_task_index = max(current_task_index, 1)
+                if "write_unit_tests" in str(msg) or "run_unit_tests" in str(msg):
                     if len(tasks_store) > 1:
-                        tasks_store[1]["status"] = "completed"
-                        current_task_index = 2
-                
-                # If we have evidence of testing activity, mark testing tasks as completed
-                if any("test" in str(msg).lower() or "unit_test" in str(msg) for msg in conversation_history):
-                    if len(tasks_store) > 2:
-                        tasks_store[2]["status"] = "completed"
-                        current_task_index = 3
-                
-                # If workflow seems complete
-                if any("finalize" in str(msg).lower() or "completed" in str(msg).lower() for msg in conversation_history):
+                        tasks_store[min(1, len(tasks_store)-1)]["status"] = "completed"
+                        current_task_index = max(current_task_index, 2)
+                if "finalize" in str(msg).lower():
                     for task in tasks_store:
                         task["status"] = "completed"
                     current_task_index = len(tasks_store)
             
-            workflow_status = "completed"
-            print("✓ Agent workflow completed")
-        else:
-            print("❌ No agents available")
-            workflow_status = "error"
+            iterations += 1
+            # Track whether we're handing off; if not, allow a few self-steps before stopping
+            if next_agent_name == current_agent_name:
+                no_handoff_count += 1
+            else:
+                no_handoff_count = 0
+            current_agent_name = next_agent_name
             
+            # Small sleep to avoid tight loop (and allow UI to poll)
+            import time
+            time.sleep(0.05)
+            
+            # Stop if no handoff occurs repeatedly (prevents getting stuck after tool results)
+            if no_handoff_count >= 3:
+                break
+        
+        workflow_status = "completed"
+        print("✓ Agent workflow completed")
+        
     except Exception as e:
         print(f"❌ Error in agent workflow: {e}")
         import traceback
