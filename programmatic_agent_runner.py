@@ -155,6 +155,22 @@ def extract_agent_communications(messages: List[Dict[str, str]]) -> List[Dict]:
         }
         
         communications.append(communication)
+
+        # Emit explicit tool_call communications for each tool used by this assistant message
+        if role == "assistant" and tools_used:
+            # Use the resolved from_agent for the tool call source
+            for t_index, tool_name in enumerate(tools_used):
+                communications.append({
+                    "id": f"msg_{i}_tool_{t_index}",
+                    "from": from_agent,
+                    "to": tool_name,
+                    "type": "tool_call",
+                    "content": f"Calling tool {tool_name}",
+                    "tools_used": [tool_name],
+                    "timestamp": f"2024-01-01T{10 + i//60:02d}:{i%60:02d}:30",
+                    "status": "ok",
+                    "raw_message": msg
+                })
     
     return communications
 

@@ -90,6 +90,19 @@ def create_message(from_agent: str, to_agent: str, message_type: str, content: s
         "status": "ok"
     }
 
+def create_tool_call(from_agent: str, tool_name: str):
+    """Create a synthetic tool_call message for visualization."""
+    return {
+        "id": str(uuid.uuid4()),
+        "from": from_agent,
+        "to": tool_name,
+        "type": "tool_call",
+        "content": f"Calling tool {tool_name}",
+        "tools_used": [tool_name],
+        "timestamp": datetime.now().isoformat(),
+        "status": "ok"
+    }
+
 @app.get("/agents")
 async def get_agents():
     """Get list of available agents."""
@@ -160,6 +173,9 @@ async def submit_prompt(request: PromptRequest):
         ["read_file", "list_directory"]
     )
     messages_store.append(orchestrator_response)
+    # Emit explicit tool_call entries for tools used
+    for tool in ["read_file", "list_directory"]:
+        messages_store.append(create_tool_call("orchestrator", tool))
     
     # Create sample tasks
     tasks_store.extend([
@@ -199,6 +215,7 @@ async def next_task():
                 ["create_function"]
             )
             messages_store.append(coder_response)
+            messages_store.append(create_tool_call("coder", "create_function"))
             
         elif current_task_index == 2:  # Tester task
             tester_message = create_message(
@@ -214,6 +231,8 @@ async def next_task():
                 ["setup_test_environment", "write_unit_tests", "run_unit_tests"]
             )
             messages_store.append(tester_response)
+            for tool in ["setup_test_environment", "write_unit_tests", "run_unit_tests"]:
+                messages_store.append(create_tool_call("tester", tool))
             
         elif current_task_index == 3:  # Finalization
             final_message = create_message(

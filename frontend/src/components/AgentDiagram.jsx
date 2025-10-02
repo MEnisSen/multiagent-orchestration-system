@@ -22,15 +22,19 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
   }, [pinnedTooltip.show])
 
   // Responsive positions for agents in the diagram (using viewBox coordinates)
-  // Layout: Orchestrator at top center, Coder/Tester form triangle below
-  const viewBox = { width: 800, height: 600 }
+  // Layout: Orchestrator at top center, User same height left, Database agent right of orchestrator, Coder/Tester bottom
+  const viewBox = { width: 1000, height: 650 }
   const agentPositions = {
     orchestrator: { x: viewBox.width * 0.5, y: viewBox.height * 0.25, color: '#3B82F6' }, // Top center
+    database: { x: viewBox.width * 0.86, y: viewBox.height * 0.25, color: '#8B5CF6' },    // Moved further right
     coder: { x: viewBox.width * 0.25, y: viewBox.height * 0.75, color: '#10B981' },       // Bottom left  
     tester: { x: viewBox.width * 0.75, y: viewBox.height * 0.75, color: '#F59E0B' }       // Bottom right
   }
 
-  // Filter messages to include user messages and agent-to-agent communications
+  // Position for the external DATABASE node (target of DB agent operations)
+  const dbNodePos = { x: viewBox.width * 0.86, y: viewBox.height * 0.42 }
+
+  // Filter messages to include user messages, agent-to-agent communications, and tool calls
   // Reverse order so newest messages come first (index 0 = latest)
   const agentMessages = messages.filter(message => {
     const from = message.from
@@ -40,6 +44,9 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
     if (from === 'user' && agentPositions[to]) {
       return true
     }
+    
+    // Include explicit tool calls (from agent to tool name)
+    if (message.type === 'tool_call') return !!agentPositions[from]
     
     // Include agent-to-agent communications
     return agentPositions[from] && agentPositions[to] && from !== to
@@ -60,14 +67,42 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
     const currentMessage = agentMessages[currentMessageIndex]
     if (!currentMessage) return []
     
-    return [{
-      from: currentMessage.from,
-      to: currentMessage.to,
-      message: currentMessage,
-      opacity: 1.0,
-      isActive: true
-    }]
+    // For tool calls: highlight the specific tool circle and suppress arrow
+    if (currentMessage.type === 'tool_call') {
+      // Special case: Database agent tool calls also draw a highlight edge to the DATABASE node
+      if (currentMessage.from === 'database') {
+        return [{
+          from: 'database',
+          to: '__db__',
+          message: currentMessage,
+          opacity: 1,
+          isActive: true,
+          isToolCall: true,
+          isDbEdge: true
+        }]
+      }
+      return [{
+        from: currentMessage.from,
+        to: currentMessage.to,
+        message: currentMessage,
+        opacity: 0,
+        isActive: true,
+        isToolCall: true
+      }]
+    }
+    
+    return [{ from: currentMessage.from, to: currentMessage.to, message: currentMessage, opacity: 1.0, isActive: true }]
   }
+
+  // Active tool-call context for highlighting
+  const activeToolCall = (() => {
+    if (agentMessages.length === 0) return null
+    const m = agentMessages[currentMessageIndex]
+    if (m && m.type === 'tool_call') {
+      return { agentId: m.from, toolName: m.to }
+    }
+    return null
+  })()
 
   // Navigation functions (reversed: index 0 = latest, higher index = older)
   const goToNewerMessage = () => {
@@ -222,7 +257,7 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
   }
 
   const createArrowPath = (from, to) => {
-    const toPos = agentPositions[to]
+    const toPos = to === '__db__' ? dbNodePos : agentPositions[to]
     
     // Handle user messages (from user to agent)
     if (from === 'user') {
@@ -268,21 +303,23 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
         preserveAspectRatio="xMidYMid meet"
       >
         
-        {/* Arrows for message flows */}
+        {/* Arrows for message flows (hidden for tool calls) */}
         {messageFlows.map((flow, index) => (
           <g key={`${flow.from}-${flow.to}-${index}`}>
-            <path
-              d={createArrowPath(flow.from, flow.to)}
-              stroke={agentPositions[flow.from]?.color || '#6B7280'}
-              strokeWidth="3"
-              fill="none"
-              opacity={flow.opacity}
-              className="message-arrow cursor-pointer"
-              onMouseEnter={(e) => handleMessageHover(flow, e)}
-              onMouseLeave={hideTooltip}
-              onClick={(e) => handleMessageClick(flow, e)}
-              markerEnd="url(#arrowhead)"
-            />
+            {!flow.isToolCall && (
+              <path
+                d={createArrowPath(flow.from, flow.to)}
+                stroke={agentPositions[flow.from]?.color || '#6B7280'}
+                strokeWidth="3"
+                fill="none"
+                opacity={flow.opacity}
+                className="message-arrow cursor-pointer"
+                onMouseEnter={(e) => handleMessageHover(flow, e)}
+                onMouseLeave={hideTooltip}
+                onClick={(e) => handleMessageClick(flow, e)}
+                markerEnd="url(#arrowhead)"
+              />
+            )}
           </g>
         ))}
         
@@ -303,31 +340,17 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
           </marker>
         </defs>
         
-        {/* User icon in top-left corner */}
-        <g transform={`translate(${viewBox.width * 0.05}, ${viewBox.height * 0.05})`}>
-          <circle
-            cx="0"
-            cy="0"
-            r="20"
-            fill="#6366F1"
-            opacity="0.2"
-            className="animate-pulse"
-          />
-          <circle
-            cx="0"
-            cy="0"
-            r="15"
-            fill="#6366F1"
-            className="cursor-pointer"
-          />
-          <text
-            x="0"
-            y="5"
-            textAnchor="middle"
-            className="fill-white text-xs font-semibold pointer-events-none"
-          >
-            USER
-          </text>
+        {/* User node (same size and height as orchestrator) */}
+        <g transform={`translate(${viewBox.width * 0.14}, ${viewBox.height * 0.25})`}>
+          <circle cx="0" cy="0" r="45" fill="#6366F1" opacity="0.2" className="animate-pulse" />
+          <circle cx="0" cy="0" r="35" fill="#6366F1" />
+          <text x="0" y="5" textAnchor="middle" className="fill-white font-semibold text-sm pointer-events-none">USER</text>
+        </g>
+
+        {/* DATABASE external node */}
+        <g transform={`translate(${dbNodePos.x}, ${dbNodePos.y})`}>
+          <rect x="-35" y="-18" rx="6" ry="6" width="70" height="36" fill="#312E81" opacity="0.9" />
+          <text x="0" y="4" textAnchor="middle" className="fill-white font-semibold text-xs pointer-events-none">DATABASE</text>
         </g>
         
         {/* Agent nodes with tools */}
@@ -346,6 +369,7 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
                 const angle = index * toolAngleStep - Math.PI / 2 // Start from top
                 const toolX = position.x + Math.cos(angle) * toolRadius
                 const toolY = position.y + Math.sin(angle) * toolRadius
+                const isActiveTool = !!(activeToolCall && activeToolCall.agentId === agent.id && activeToolCall.toolName === tool)
                 
                 return (
                   <g key={`${agent.id}-tool-${index}`}>
@@ -356,9 +380,9 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
                       x2={toolX}
                       y2={toolY}
                       stroke={position.color}
-                      strokeWidth="1"
-                      opacity="0.3"
-                      strokeDasharray="2,2"
+                      strokeWidth={isActiveTool ? 3 : 1}
+                      opacity={isActiveTool ? 0.95 : 0.3}
+                      strokeDasharray={isActiveTool ? undefined : "2,2"}
                     />
                     
                     {/* Tool circle */}
@@ -367,7 +391,7 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
                       cy={toolY}
                       r="12"
                       fill={position.color}
-                      opacity="0.7"
+                      opacity={isActiveTool ? 1 : 0.7}
                       className="cursor-pointer hover:opacity-100 transition-opacity"
                       onMouseEnter={(e) => {
                         if (!pinnedTooltip.show) {
@@ -391,6 +415,20 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
                       }}
                       onMouseLeave={hideTooltip}
                     />
+
+                    {/* Active highlight ring for tool call */}
+                    {isActiveTool && (
+                      <circle
+                        cx={toolX}
+                        cy={toolY}
+                        r="16"
+                        fill="none"
+                        stroke={position.color}
+                        strokeWidth="3"
+                        opacity="0.9"
+                        className="animate-pulse"
+                      />
+                    )}
                     
                     {/* Tool icon/text */}
                     <text

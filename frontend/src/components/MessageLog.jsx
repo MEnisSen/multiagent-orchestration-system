@@ -12,7 +12,8 @@ const MessageLog = ({ messages, allMessages = [], onMessageClick, pausePolling =
       error: 'bg-red-100 text-red-800',
       test_report: 'bg-amber-100 text-amber-800',
       patch: 'bg-indigo-100 text-indigo-800',
-      broadcast: 'bg-gray-100 text-gray-800'
+      broadcast: 'bg-gray-100 text-gray-800',
+      tool_call: 'bg-teal-100 text-teal-800'
     }
     return colors[type] || 'bg-gray-100 text-gray-800'
   }
@@ -130,7 +131,7 @@ const MessageLog = ({ messages, allMessages = [], onMessageClick, pausePolling =
                       {message.from}
                     </span>
                     <span className="mx-2 text-gray-400">→</span>
-                    <span className={`text-sm font-semibold ${getAgentColor(message.to)}`}>
+                    <span className={`text-sm font-semibold ${message.type === 'tool_call' ? 'text-teal-600' : getAgentColor(message.to)}`}>
                       {message.to}
                     </span>
                   </div>
@@ -148,7 +149,7 @@ const MessageLog = ({ messages, allMessages = [], onMessageClick, pausePolling =
                       <div className="text-xs font-medium text-gray-600 mb-1">Tools Used:</div>
                       <div className="flex flex-wrap gap-1">
                         {message.tools_used.slice(0, 3).map((tool, i) => (
-                          <span key={i} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded">
+                          <span key={i} className={`text-xs px-2 py-1 rounded ${message.type === 'tool_call' ? 'bg-teal-50 text-teal-700' : 'bg-blue-50 text-blue-600'}`}>
                             🔧 {tool}
                           </span>
                         ))}
