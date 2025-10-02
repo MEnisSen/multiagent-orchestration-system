@@ -191,7 +191,7 @@ function App() {
     }
   }
 
-  const handlePromptSubmit = async (prompt) => {
+  const handlePromptSubmit = async (prompt, documents = []) => {
     setIsLoading(true)
     setWorkflowStatus('planning')
     try {
@@ -200,7 +200,10 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ 
+          prompt,
+          documents: documents.length > 0 ? documents : undefined
+        })
       })
       const data = await response.json()
       console.log('Prompt submission result:', data)

@@ -3,7 +3,7 @@ Real integration bridge between the frontend and the actual agent system.
 This connects to your actual Orchestrator, Coder, and Tester agents.
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -14,10 +14,14 @@ import threading
 from datetime import datetime
 import uuid
 import os
+import tempfile
+import shutil
+from pathlib import Path
 
 # Import your actual agent system
 from agents import create_coding_agents
 from programmatic_agent_runner import run_agent_workflow_programmatic, extract_agent_communications, extract_tasks_from_messages
+from document_processor_v2 import process_uploaded_documents_v2, combine_prompt_with_documents_v2
 
 app = FastAPI(title="Real Agent Communication Bridge")
 
@@ -43,6 +47,7 @@ workflow_running = False
 
 class PromptRequest(BaseModel):
     prompt: str
+    documents: Optional[List[str]] = None  # List of document filenames
 
 def initialize_agents():
     """Initialize the actual agent system."""
@@ -307,6 +312,42 @@ async def get_status():
         }
     }
 
+@app.post("/upload-documents")
+async def upload_documents(files: List[UploadFile] = File(...)):
+    """Upload and process documents, returning processed markdown content."""
+    try:
+        # Create temporary directory for uploaded files
+        temp_dir = tempfile.mkdtemp(prefix="agent_docs_")
+        file_paths = []
+        filenames = []
+        
+        for file in files:
+            # Save uploaded file to temporary location
+            file_path = os.path.join(temp_dir, file.filename)
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            
+            file_paths.append(file_path)
+            filenames.append(file.filename)
+        
+        # Process documents with vllm-based Granite model
+        document_markdowns = await process_uploaded_documents_v2(file_paths, filenames)
+        
+        # Clean up temporary files
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        
+        return {
+            "status": "success",
+            "documents": document_markdowns,
+            "filenames": filenames
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error processing documents: {str(e)}"
+        }
+
 @app.post("/submit-prompt")
 async def submit_prompt(request: PromptRequest, background_tasks: BackgroundTasks):
     """Submit a user prompt to start the actual agent workflow."""
@@ -332,8 +373,15 @@ async def submit_prompt(request: PromptRequest, background_tasks: BackgroundTask
     current_task_index = 0
     workflow_status = "planning"
     
+    # Process documents if provided
+    final_prompt = request.prompt
+    if request.documents:
+        # Documents are already processed markdown content
+        document_markdowns = request.documents
+        final_prompt = combine_prompt_with_documents_v2(request.prompt, document_markdowns)
+    
     # Start the workflow in background
-    background_tasks.add_task(run_agent_workflow, request.prompt)
+    background_tasks.add_task(run_agent_workflow, final_prompt)
     
     return {
         "status": "success",
