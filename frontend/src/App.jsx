@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import AgentDiagram from './components/AgentDiagram'
-import ControlPanel from './components/ControlPanel'
 import MessageLog from './components/MessageLog'
 import StatusBar from './components/StatusBar'
 import UserPromptInput from './components/UserPromptInput'
@@ -335,19 +334,8 @@ function App() {
             </div>
           </div>
 
-          {/* Control Panel - Right column */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                Controls
-              </h2>
-              <ControlPanel 
-                onAction={triggerAction}
-                isLoading={isLoading}
-                workflowStatus={workflowStatus}
-              />
-            </div>
-          </div>
+          {/* Right column left empty (controls removed) */}
+          <div className="lg:col-span-1"></div>
         </div>
 
         {/* Recent Messages Section - Full Width */}

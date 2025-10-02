@@ -33,9 +33,11 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
 
   // Position for the external DATABASE node (target of DB agent operations)
   const dbNodePos = { x: viewBox.width * 0.86, y: viewBox.height * 0.42 }
+  // Position for USER node (kept in sync with the rendered USER group)
+  const userNodePos = { x: viewBox.width * 0.14, y: viewBox.height * 0.25 }
 
   // Filter messages to include user messages, agent-to-agent communications, and tool calls
-  // Reverse order so newest messages come first (index 0 = latest)
+  // Keep chronological order: index 0 = earliest, last index = latest
   const agentMessages = messages.filter(message => {
     const from = message.from
     const to = message.to
@@ -50,12 +52,11 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
     
     // Include agent-to-agent communications
     return agentPositions[from] && agentPositions[to] && from !== to
-  }).reverse()
+  })
 
-  // Auto-update current message index to show latest message (now index 0)
+  // Auto-set to the first (earliest) message when new messages arrive
   useEffect(() => {
     if (agentMessages.length > 0) {
-      // Always show the latest message (index 0) when new messages arrive
       setCurrentMessageIndex(0)
     }
   }, [agentMessages.length])
@@ -104,22 +105,28 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
     return null
   })()
 
-  // Navigation functions (reversed: index 0 = latest, higher index = older)
+  // Navigation functions (chronological: index 0 = earliest -> increasing index = newer)
   const goToNewerMessage = () => {
-    if (currentMessageIndex > 0) {
-      setCurrentMessageIndex(currentMessageIndex - 1)
-    }
-  }
-
-  const goToOlderMessage = () => {
     if (currentMessageIndex < agentMessages.length - 1) {
       setCurrentMessageIndex(currentMessageIndex + 1)
     }
   }
 
+  const goToOlderMessage = () => {
+    if (currentMessageIndex > 0) {
+      setCurrentMessageIndex(currentMessageIndex - 1)
+    }
+  }
+
   const goToLatestMessage = () => {
     if (agentMessages.length > 0) {
-      setCurrentMessageIndex(0)  // Index 0 is now the latest message
+      setCurrentMessageIndex(agentMessages.length - 1)
+    }
+  }
+
+  const goToFirstMessage = () => {
+    if (agentMessages.length > 0) {
+      setCurrentMessageIndex(0)
     }
   }
 
@@ -262,9 +269,9 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
     // Handle user messages (from user to agent)
     if (from === 'user') {
       if (!toPos) return ''
-      // Start from top-left corner for user messages
-      const userStartX = viewBox.width * 0.05
-      const userStartY = viewBox.height * 0.05
+      // Start from actual USER node position
+      const userStartX = userNodePos.x
+      const userStartY = userNodePos.y
       
       const dx = toPos.x - userStartX
       const dy = toPos.y - userStartY
@@ -553,7 +560,19 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
       {/* Navigation Controls */}
       <div className="flex items-center justify-center mt-4 space-x-4 bg-white rounded-lg p-3 shadow-md border">
         <button
-          onClick={goToNewerMessage}
+          onClick={goToFirstMessage}
+          disabled={currentMessageIndex <= 0}
+          className={`flex items-center px-2 py-2 rounded-lg transition-all ${
+            currentMessageIndex <= 0
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+              : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg'
+          }`}
+          title="Go to first communication"
+        >
+          &laquo;
+        </button>
+        <button
+          onClick={goToOlderMessage}
           disabled={currentMessageIndex <= 0}
           className={`flex items-center px-3 py-2 rounded-lg transition-all ${
             currentMessageIndex <= 0 
@@ -561,10 +580,7 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
               : 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
           }`}
         >
-          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Newer
+          &lt;
         </button>
 
         <div className="flex items-center space-x-2 bg-gray-50 px-4 py-2 rounded-lg">
@@ -577,7 +593,7 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
         </div>
 
         <button
-          onClick={goToOlderMessage}
+          onClick={goToNewerMessage}
           disabled={currentMessageIndex >= agentMessages.length - 1}
           className={`flex items-center px-3 py-2 rounded-lg transition-all ${
             currentMessageIndex >= agentMessages.length - 1
@@ -585,25 +601,20 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
               : 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
           }`}
         >
-          Older
-          <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
+          &gt;
         </button>
 
         <button
           onClick={goToLatestMessage}
-          disabled={currentMessageIndex <= 0}
+          disabled={currentMessageIndex >= agentMessages.length - 1}
           className={`flex items-center px-2 py-2 rounded-lg transition-all ${
-            currentMessageIndex <= 0
+            currentMessageIndex >= agentMessages.length - 1
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
               : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg'
           }`}
           title="Go to latest communication"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-          </svg>
+          &raquo;
         </button>
       </div>
 
