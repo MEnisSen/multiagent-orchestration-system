@@ -168,7 +168,7 @@ async def get_agents():
                     "name": "Orchestrator Agent",
                     "capabilities": ["coordinate_workflow", "parse_requests", "manage_tasks"],
                     "model": {"provider": "openai", "id": "gpt-4o-mini"},
-                    "tools": ["read_file", "list_directory", "finalize_function", "transfer_to_coder_agent", "transfer_to_tester_agent"],
+                    "tools": ["read_file", "list_directory", "finalize_function", "transfer_to_coder_agent", "transfer_to_tester_agent", "transfer_to_database_agent"],
                     "description": "Manages the entire coding workflow (API key required for actual use)"
                 },
                 {
@@ -186,6 +186,14 @@ async def get_agents():
                     "model": {"provider": "openai", "id": "gpt-4o-mini"},
                     "tools": ["setup_test_environment", "write_unit_tests", "run_unit_tests", "transfer_to_orchestrator_agent"],
                     "description": "Writes and runs tests (API key required for actual use)"
+                },
+                {
+                    "id": "database",
+                    "name": "Database Agent",
+                    "capabilities": ["update_knowledge_graph", "retrieve_from_graph"],
+                    "model": {"provider": "openai", "id": "gpt-4o-mini"},
+                    "tools": ["kg_updater", "kg_retriever", "transfer_to_orchestrator_agent"],
+                    "description": "Manages Neo4j knowledge graph updates and retrievals (API key required for actual use)"
                 }
             ]
         }

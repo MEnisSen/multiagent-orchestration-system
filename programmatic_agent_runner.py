@@ -132,6 +132,9 @@ def extract_agent_communications(messages: List[Dict[str, str]]) -> List[Dict]:
             elif "tester" in content.lower() or any(tool in tools_used for tool in ["write_unit_tests", "run_unit_tests"]):
                 from_agent = "tester"
                 to_agent = "orchestrator"
+            elif "database" in content.lower() or any(tool in tools_used for tool in ["kg_updater", "kg_retriever"]):
+                from_agent = "database"
+                to_agent = "orchestrator"
             else:
                 from_agent = "orchestrator"  # Default
                 to_agent = "user"

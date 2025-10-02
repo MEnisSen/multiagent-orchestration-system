@@ -76,7 +76,7 @@ function App() {
           provider: "openai",
           id: "gpt-4o-mini"
         },
-        tools: ["read_file", "list_directory", "finalize_function", "transfer_to_coder_agent", "transfer_to_tester_agent"],
+        tools: ["read_file", "list_directory", "finalize_function", "transfer_to_coder_agent", "transfer_to_tester_agent", "transfer_to_database_agent"],
         description: "Manages the entire coding workflow and coordinates between other agents"
       },
       {
@@ -98,6 +98,16 @@ function App() {
         },
         tools: ["setup_test_environment", "write_unit_tests", "run_unit_tests", "transfer_to_orchestrator_agent"],
         description: "Writes comprehensive unit tests and validates code functionality"
+      },
+      {
+        id: "database",
+        capabilities: ["update_knowledge_graph", "retrieve_from_graph"],
+        model: {
+          provider: "openai",
+          id: "gpt-4o-mini"
+        },
+        tools: ["kg_updater", "kg_retriever", "transfer_to_orchestrator_agent"],
+        description: "Manages Neo4j knowledge graph updates and retrievals"
       }
     ]
     setAgents(defaultAgents)

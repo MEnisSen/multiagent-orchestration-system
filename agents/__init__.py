@@ -8,12 +8,14 @@ from .base_agent import BaseAgent, run_agent_loop
 from .orchestrator_agent import OrchestratorAgent
 from .coder_agent import CoderAgent
 from .tester_agent import TesterAgent
+from .database_agent import DatabaseAgent
 
 
 def create_coding_agents(
     orchestrator_model: str = "gpt-4o-mini",
     coder_model: str = "gpt-4o-mini",
     tester_model: str = "gpt-4o-mini",
+    database_model: str = "gpt-4o-mini",
     api_key: str = None,
     base_url: str = None
 ) -> Dict[str, BaseAgent]:
@@ -39,10 +41,11 @@ def create_coding_agents(
     orchestrator = OrchestratorAgent(model=orchestrator_model, **common_kwargs)
     coder = CoderAgent(model=coder_model, **common_kwargs)
     tester = TesterAgent(model=tester_model, **common_kwargs)
+    database = DatabaseAgent(model=database_model, **common_kwargs)
     
     return {
         agent.name: agent
-        for agent in [orchestrator, coder, tester]
+        for agent in [orchestrator, coder, tester, database]
     }
 
 
@@ -51,6 +54,7 @@ __all__ = [
     'OrchestratorAgent', 
     'CoderAgent',
     'TesterAgent',
+    'DatabaseAgent',
     'create_coding_agents',
     'run_agent_loop'
 ]

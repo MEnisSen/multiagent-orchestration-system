@@ -64,6 +64,16 @@ AGENTS_DATA = [
         },
         "tools": ["setup_test_environment", "write_unit_tests", "run_unit_tests", "transfer_to_orchestrator_agent"],
         "description": "Writes comprehensive unit tests and validates code functionality"
+    },
+    {
+        "id": "database",
+        "capabilities": ["update_knowledge_graph", "retrieve_from_graph"],
+        "model": {
+            "provider": "openai",
+            "id": "gpt-4o-mini"
+        },
+        "tools": ["kg_updater", "kg_retriever", "transfer_to_orchestrator_agent"],
+        "description": "Manages Neo4j knowledge graph updates and retrievals"
     }
 ]
 
