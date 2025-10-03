@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import AgentDiagram from './components/AgentDiagram'
 import MessageLog from './components/MessageLog'
-import StatusBar from './components/StatusBar'
-import UserPromptInput from './components/UserPromptInput'
 import TaskList from './components/TaskList'
-import GeneratedFiles from './components/GeneratedFiles'
+import HeroPrompt from './components/HeroPrompt'
+import FilesBar from './components/FilesBar'
 
 const API_BASE = 'http://localhost:8000'
 
@@ -19,6 +18,10 @@ function App() {
   const [workflowStatus, setWorkflowStatus] = useState('idle') // idle, planning, coding, testing, completed
   const [generatedFiles, setGeneratedFiles] = useState([])
   const [isUpdating, setIsUpdating] = useState(false)
+  const [hasSubmitted, setHasSubmitted] = useState(false)
+  const [submittedPrompt, setSubmittedPrompt] = useState('')
+  const [submittedDocuments, setSubmittedDocuments] = useState([])
+  const [topBarActive, setTopBarActive] = useState(false)
 
   // Fetch agents on component mount and ensure they're always visible
   useEffect(() => {
@@ -48,6 +51,16 @@ function App() {
 
     return () => clearInterval(interval)
   }, [pausePolling])
+
+  // Activate top bar visuals with a slight delay after submit
+  useEffect(() => {
+    if (hasSubmitted) {
+      const timer = setTimeout(() => setTopBarActive(true), 350)
+      return () => clearTimeout(timer)
+    } else {
+      setTopBarActive(false)
+    }
+  }, [hasSubmitted])
 
   const fetchAgents = async () => {
     try {
@@ -207,6 +220,9 @@ function App() {
       })
       const data = await response.json()
       console.log('Prompt submission result:', data)
+      setHasSubmitted(true)
+      setSubmittedPrompt(prompt)
+      setSubmittedDocuments(documents || [])
       
       // Refresh data after prompt submission
       setTimeout(() => {
@@ -264,8 +280,13 @@ function App() {
     }
   }
 
+  // Compute sliding window available height (viewport minus sticky bars)
+  const topBarPx = topBarActive ? 96 : 0 // approx sticky header height when active
+  const bottomBarPx = hasSubmitted && generatedFiles.length > 0 ? 80 : 0 // approx sticky footer height
+  const slidingWindowHeight = `calc(100vh - ${topBarPx + bottomBarPx + 32}px)` // extra spacing
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-white flex flex-col">
       
       {/* Live Update Indicator - Top Right Corner */}
       <div className="fixed top-4 right-4 z-50">
@@ -290,86 +311,90 @@ function App() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
-        {/* Header */}
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            AI Coding Assistant System
-          </h1>
-          <p className="text-lg text-gray-600">
-            Interactive visualization of multi-agent code generation, testing, and finalization
-          </p>
-          <StatusBar status={systemStatus} />
-        </header>
-
-        {/* User Prompt Input */}
-        <div className="mb-8">
-          <UserPromptInput 
-            onSubmitPrompt={handlePromptSubmit}
-            isLoading={isLoading || workflowStatus !== 'idle'}
-          />
-        </div>
-
-        {/* Main Content - 3 Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          
-          {/* Task List - Left column */}
-          <div className="lg:col-span-1">
-            <TaskList 
-              tasks={tasks}
-              currentTaskIndex={currentTaskIndex}
+      {/* Sticky Top: Prompt bar (hidden styling before submit) */}
+      <div className={`sticky top-0 z-40 ${topBarActive ? 'bg-white/90 backdrop-blur border-b' : 'bg-transparent border-b-0'}`}>
+        <div className={`container mx-auto px-4 ${topBarActive ? 'py-3' : 'py-0'}`}>
+          <div
+            className="transition-transform duration-700 ease-in-out"
+            style={{ transform: hasSubmitted ? 'translateY(0)' : 'translateY(calc(50vh - 120px))' }}
+          >
+            <HeroPrompt
+              onSubmitPrompt={handlePromptSubmit}
+              isLoading={isLoading || workflowStatus !== 'idle'}
+              isSubmitted={hasSubmitted}
+              submittedPrompt={submittedPrompt}
+              submittedDocuments={submittedDocuments}
             />
           </div>
+        </div>
+      </div>
 
-          {/* Agent Diagram - Center column */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-lg p-6 h-fit">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                Agent Network
-              </h2>
-              <div className="w-full" style={{ minHeight: '300px', maxHeight: '500px' }}>
-                <AgentDiagram 
-                  agents={agents} 
-                  messages={messages}
-                  onMessageHover={(message) => console.log('Hovered message:', message)}
-                />
+      <div className="container mx-auto px-4 flex-1 flex flex-col">
+
+        {/* Status Bar under title area */}
+        
+
+        {/* Sliding content area (no background) shows after submit */}
+        {hasSubmitted && (
+          <div className="mt-6 min-h-0 overflow-y-auto" style={{ height: slidingWindowHeight }}>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full min-h-0 overflow-visible">
+              {/* Task List (left) */}
+              <div className="lg:col-span-3 animate-fade-in-up animate-fade-in-up-delay-1 h-full min-h-0">
+                <div className="bg-white rounded-2xl shadow-lg p-6 h-full flex flex-col min-h-0">
+                  <h2 className="text-2xl font-semibold text-gray-800 mb-4">Task List</h2>
+                  <div className="flex-1 overflow-y-auto min-h-0">
+                    <TaskList 
+                      tasks={tasks}
+                      currentTaskIndex={currentTaskIndex}
+                      embedded={true}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Agent Diagram (center) */}
+              <div className="lg:col-span-6 animate-fade-in-up animate-fade-in-up-delay-2 h-full min-h-0 overflow-visible">
+                <div className="bg-white rounded-2xl shadow-lg p-6 h-full flex flex-col min-h-0 overflow-visible">
+                  <h2 className="text-2xl font-semibold text-gray-800 mb-4">Agent Network</h2>
+                  <div className="w-full flex-1 min-h-0 overflow-visible">
+                    <AgentDiagram 
+                      agents={agents}
+                      messages={messages}
+                      onMessageHover={(message) => console.log('Hovered message:', message)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Messages (right) */}
+              <div className="lg:col-span-3 animate-fade-in-up animate-fade-in-up-delay-3 h-full min-h-0 overflow-visible">
+                <div className="bg-white rounded-2xl shadow-lg p-6 h-full flex flex-col min-h-0 overflow-visible">
+                  <h2 className="text-2xl font-semibold text-gray-800 mb-4">Recent Messages</h2>
+                  <div className="flex-1 overflow-y-auto min-h-0" style={{ overflowX: 'visible' }}>
+                    <MessageLog 
+                      messages={messages.slice(0, 50)}
+                      allMessages={messages}
+                      onMessageClick={handleMessageClick}
+                      pausePolling={pausePolling}
+                      onTogglePause={() => setPausePolling(!pausePolling)}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
+            {/* Files bar is sticky at bottom outside this scroll area */}
           </div>
-
-          {/* Right column left empty (controls removed) */}
-          <div className="lg:col-span-1"></div>
-        </div>
-
-        {/* Recent Messages Section - Full Width */}
-        <div className="mt-8">
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-              💬 Recent Messages
-            </h2>
-            <MessageLog 
-              messages={messages.slice(0, 15)}
-              allMessages={messages}
-              onMessageClick={handleMessageClick}
-              pausePolling={pausePolling}
-              onTogglePause={() => setPausePolling(!pausePolling)}
-            />
-          </div>
-        </div>
-
-        {/* Generated Files Section */}
-        <div className="mt-8">
-          <GeneratedFiles files={generatedFiles} />
-        </div>
-
-        {/* Footer */}
-        <footer className="mt-12 text-center text-gray-500 text-sm">
-          <p>
-            Built with React, FastAPI, and OpenAI • 
-            Multi-agent system for automated code generation and testing
-          </p>
-        </footer>
+        )}
       </div>
+
+      {/* Sticky Bottom: Generated files bar */}
+      {hasSubmitted && generatedFiles.length > 0 && (
+        <div className="sticky bottom-0 z-40 bg-white/90 backdrop-blur border-t">
+          <div className="container mx-auto px-4 py-3">
+            <FilesBar files={generatedFiles} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

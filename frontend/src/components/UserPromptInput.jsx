@@ -11,7 +11,7 @@ const UserPromptInput = ({ onSubmitPrompt, isLoading }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (prompt.trim()) {
+    if (prompt.trim() && !isUploading) {
       await onSubmitPrompt(prompt.trim(), uploadedDocuments)
       setPrompt('')
       setUploadedDocuments([])
@@ -60,6 +60,12 @@ const UserPromptInput = ({ onSubmitPrompt, isLoading }) => {
     setPrompt(example)
   }
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && (isLoading || isUploading)) {
+      e.preventDefault()
+    }
+  }
+
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6">
       <h2 className="text-xl font-semibold text-gray-800 mb-4">
@@ -75,10 +81,11 @@ const UserPromptInput = ({ onSubmitPrompt, isLoading }) => {
             id="prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="e.g., Create a calculator with basic math operations, error handling, and unit tests..."
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             rows={4}
-            disabled={isLoading}
+            disabled={isLoading || isUploading}
           />
         </div>
 
@@ -131,7 +138,7 @@ const UserPromptInput = ({ onSubmitPrompt, isLoading }) => {
                       type="button"
                       onClick={() => removeDocument(index)}
                       className="text-red-500 hover:text-red-700 text-sm"
-                      disabled={isLoading}
+                      disabled={isLoading || isUploading}
                     >
                       ✕
                     </button>
@@ -144,17 +151,18 @@ const UserPromptInput = ({ onSubmitPrompt, isLoading }) => {
 
         <button
           type="submit"
-          disabled={!prompt.trim() || isLoading}
+          disabled={!prompt.trim() || isLoading || isUploading}
           className={`w-full py-3 px-4 rounded-lg font-semibold transition-all duration-200 ${
-            !prompt.trim() || isLoading
+            !prompt.trim() || isLoading || isUploading
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
           }`}
+          title={isUploading ? "Please wait for file processing to complete" : ""}
         >
-          {isLoading ? (
+          {isLoading || isUploading ? (
             <div className="flex items-center justify-center space-x-2">
               <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-              <span>Processing...</span>
+              <span>{isUploading ? 'Processing files...' : 'Processing...'}</span>
             </div>
           ) : (
             '🚀 Start Agent Workflow'
@@ -171,7 +179,7 @@ const UserPromptInput = ({ onSubmitPrompt, isLoading }) => {
               key={index}
               onClick={() => handleExampleClick(example)}
               className="w-full text-left p-3 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-              disabled={isLoading}
+              disabled={isLoading || isUploading}
             >
               {example}
             </button>

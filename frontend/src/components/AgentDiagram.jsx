@@ -557,8 +557,8 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
         </div>
       )}
 
-      {/* Navigation Controls */}
-      <div className="flex items-center justify-center mt-4 space-x-4 bg-white rounded-lg p-3 shadow-md border">
+      {/* Navigation Controls - overlay at bottom of diagram */}
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-4 z-10 flex items-center justify-center space-x-4 bg-white/90 backdrop-blur rounded-lg p-3 shadow-md border">
         <button
           onClick={goToFirstMessage}
           disabled={currentMessageIndex <= 0}
@@ -618,22 +618,7 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
         </button>
       </div>
 
-      {/* Current Message Info */}
-      {agentMessages.length > 0 && (
-        <div className="mt-3 bg-gray-50 rounded-lg p-3 border">
-          <div className="flex items-center justify-between text-sm">
-            <div className="font-medium text-gray-700">
-              {agentMessages[currentMessageIndex]?.from?.toUpperCase()} → {agentMessages[currentMessageIndex]?.to?.toUpperCase()}
-            </div>
-            <div className="text-gray-500">
-              {agentMessages[currentMessageIndex]?.type} | {new Date(agentMessages[currentMessageIndex]?.timestamp).toLocaleTimeString()}
-            </div>
-          </div>
-          <div className="mt-1 text-xs text-gray-600">
-            {agentMessages[currentMessageIndex]?.payload?.goal || 'Agent communication'}
-          </div>
-        </div>
-      )}
+      {/* Current Message Info removed per design */}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import React from 'react'
 
-const TaskList = ({ tasks, currentTaskIndex }) => {
+// If embedded=true, render without the outer panel container so a parent panel can control layout/height
+const TaskList = ({ tasks, currentTaskIndex, embedded = false }) => {
   const getTaskStatus = (index) => {
     if (index < currentTaskIndex) return 'completed'
     if (index === currentTaskIndex) return 'in_progress'
@@ -27,16 +28,14 @@ const TaskList = ({ tasks, currentTaskIndex }) => {
 
   if (!tasks || tasks.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-          📋 Task List
-        </h2>
+      <div className={`${embedded ? '' : 'bg-white rounded-2xl shadow-lg p-6'}`}>
+        {!embedded && (
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">📋 Task List</h2>
+        )}
         <div className="text-center py-8 text-gray-500">
           <div className="text-3xl mb-2">📝</div>
           <div className="text-sm">No tasks yet</div>
-          <div className="text-xs text-gray-400 mt-1">
-            Submit a prompt to generate tasks
-          </div>
+          <div className="text-xs text-gray-400 mt-1">Submit a prompt to generate tasks</div>
         </div>
       </div>
     )
@@ -47,15 +46,13 @@ const TaskList = ({ tasks, currentTaskIndex }) => {
   const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-          📋 Task List
-        </h2>
-        <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-          {completedTasks}/{totalTasks}
-        </span>
-      </div>
+    <div className={`${embedded ? '' : 'bg-white rounded-2xl shadow-lg p-6'}`}>
+      {!embedded && (
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-800 flex items-center">📋 Task List</h2>
+          <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full">{completedTasks}/{totalTasks}</span>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div className="mb-4">
@@ -72,7 +69,7 @@ const TaskList = ({ tasks, currentTaskIndex }) => {
       </div>
 
       {/* Task list */}
-      <div className="space-y-3 max-h-96 overflow-y-auto">
+      <div className="space-y-3 max-h-full overflow-y-auto">
         {tasks.map((task, index) => {
           const status = getTaskStatus(index)
           const statusIcon = getStatusIcon(status)
