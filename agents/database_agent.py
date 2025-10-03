@@ -5,6 +5,10 @@ Handles knowledge graph updates and retrieval operations.
 
 from .base_agent import BaseAgent, create_handoff_function
 from tools import kg_updater, kg_retriever
+from tools.database_tools import (
+    hs_neo4j_upsert_documents,
+    hs_neo4j_retrieve,
+)
 
 
 class DatabaseAgent(BaseAgent):
@@ -57,6 +61,9 @@ class DatabaseAgent(BaseAgent):
         # Add database tools
         self.add_tool(kg_updater)
         self.add_tool(kg_retriever)
+        # Haystack + Neo4j tools
+        self.add_tool(hs_neo4j_upsert_documents)
+        self.add_tool(hs_neo4j_retrieve)
         
         # Add handoff functions
         for handoff_func in self.get_handoff_functions():

@@ -21,7 +21,7 @@ def check_environment():
         "OPENAI_API_KEY": "OpenAI API key for LLM operations",
         "NEO4J_URI": "Neo4j database URI (default: bolt://localhost:7687)",
         "NEO4J_USERNAME": "Neo4j username (default: neo4j)",
-        "NEO4J_PASSWORD": "Neo4j password"
+        "NEO4J_PASSWORD": "Neo4j passw0rd"
     }
     
     missing_vars = []
@@ -55,7 +55,7 @@ def check_environment():
         print("To enable full functionality, set:")
         print("  export NEO4J_URI='bolt://localhost:7687'")
         print("  export NEO4J_USERNAME='neo4j'")
-        print("  export NEO4J_PASSWORD='your-password'")
+        print("  export NEO4J_PASSWORD='your-passw0rd'")
         print()
     
     return True

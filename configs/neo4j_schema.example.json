@@ -1,0 +1,49 @@
+{
+  "node_types": [
+    {
+      "label": "Document",
+      "description": "Source document",
+      "properties": ["id", "path", "title"]
+    },
+    {
+      "label": "Chunk",
+      "description": "Text chunk",
+      "properties": ["id", "text", "index"]
+    },
+    {
+      "label": "Entity",
+      "description": "Extracted entity",
+      "properties": ["id", "name", "type"]
+    }
+  ],
+  "relationship_types": [
+    {
+      "label": "PART_OF_DOCUMENT",
+      "description": "Chunk belongs to a document",
+      "properties": ["since"]
+    },
+    {
+      "label": "MENTIONS",
+      "description": "Chunk mentions an entity",
+      "properties": ["confidence"]
+    },
+    {
+      "label": "RELATES_TO",
+      "description": "Entity-to-entity relation",
+      "properties": ["type", "weight"]
+    }
+  ],
+  "patterns": [
+    {
+      "start": "Chunk",
+      "relationship": "PART_OF_DOCUMENT",
+      "end": "Document"
+    },
+    {
+      "start": "Chunk",
+      "relationship": "MENTIONS",
+      "end": "Entity"
+    }
+  ]
+}
+

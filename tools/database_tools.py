@@ -34,16 +34,47 @@ except ImportError:
     print("Warning: neo4j-graphrag package not installed. Install with: pip install neo4j-graphrag")
 
 
+# Haystack + Neo4j integration (optional, separate from GraphRAG)
+try:
+    from haystack import Document
+    from haystack.components.embedders import SentenceTransformersDocumentEmbedder
+    from haystack.components.retrievers.neo4j import Neo4jEmbeddingRetriever
+    from neo4j_haystack import Neo4jDocumentStore
+    HAYSTACK_NEO4J_AVAILABLE = True
+except Exception:
+    HAYSTACK_NEO4J_AVAILABLE = False
+    print("Warning: haystack-ai or neo4j-haystack not installed. Install with: pip install 'haystack-ai>=2.0.0' neo4j-haystack")
+
+
 def get_neo4j_connection():
     """Get Neo4j connection from environment variables."""
     uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     username = os.getenv("NEO4J_USERNAME", "neo4j")
-    password = os.getenv("NEO4J_PASSWORD", "password")
+    password = os.getenv("NEO4J_PASSWORD", "passw0rd")
     
     if not NEO4J_AVAILABLE:
         raise ImportError("neo4j package not installed")
     
     return GraphDatabase.driver(uri, auth=(username, password))
+
+
+def _run_async_safely(coro):
+    """Run an async coroutine in a way that avoids event loop shutdown issues.
+    - If no loop is running, create one and do not aggressively close it.
+    - If a loop is running (unlikely in our sync tool context), raise a clear error.
+    """
+    try:
+        running_loop = asyncio.get_running_loop()
+        # Avoid deadlocks by not trying to nest
+        raise RuntimeError("Async loop already running; call this tool from a sync context.")
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(loop)
+            return loop.run_until_complete(coro)
+        finally:
+            # Intentionally do not close the loop immediately to allow background cleanup tasks to finish
+            pass
 
 
 def kg_updater(
@@ -92,6 +123,25 @@ def kg_updater(
                     "status": "error",
                     "message": "Invalid schema_config JSON format"
                 })
+        else:
+            # Fallback: allow prebuilt schema via env var or default path
+            schema_path = os.getenv("NEO4J_SCHEMA_PATH")
+            if not schema_path:
+                default_path = Path("configs/neo4j_schema.json")
+                if default_path.exists():
+                    schema_path = str(default_path)
+            if schema_path:
+                try:
+                    with open(schema_path, "r", encoding="utf-8") as f:
+                        schema_dict = json.load(f)
+                    node_types = schema_dict.get("node_types", [])
+                    relationship_types = schema_dict.get("relationship_types", [])
+                    patterns = schema_dict.get("patterns", [])
+                except Exception as e:
+                    return json.dumps({
+                        "status": "error",
+                        "message": f"Failed to read schema file at {schema_path}: {str(e)}"
+                    })
         
         # Initialize OpenAI LLM for entity extraction
         llm = OpenAILLM(
@@ -106,6 +156,34 @@ def kg_updater(
         # Initialize embedder for chunk embeddings
         embedder = OpenAIEmbeddings(model="text-embedding-3-small")
         
+        # Helper: convert a list of property specs (str or dict) to PropertyType instances
+        def _to_property_types(props: List[Any]) -> List[PropertyType]:
+            property_types: List[PropertyType] = []
+            for p in props or []:
+                if isinstance(p, dict):
+                    try:
+                        property_types.append(PropertyType(**p))
+                    except TypeError:
+                        # Try common alternate key names
+                        if "name" in p:
+                            property_types.append(PropertyType(name=p["name"], **{k: v for k, v in p.items() if k != "name"}))
+                        elif "key" in p:
+                            property_types.append(PropertyType(name=p["key"], **{k: v for k, v in p.items() if k != "key"}))
+                        else:
+                            # Skip invalid shapes gracefully
+                            continue
+                elif isinstance(p, str):
+                    # Best-effort: set name only; library may default type
+                    try:
+                        property_types.append(PropertyType(name=p))
+                    except TypeError:
+                        # Older versions may use 'key' instead of 'name'
+                        try:
+                            property_types.append(PropertyType(key=p))
+                        except Exception:
+                            continue
+            return property_types
+
         # Step 1: Text Splitter
         splitter = FixedSizeSplitter(
             chunk_size=chunk_size,
@@ -114,24 +192,63 @@ def kg_updater(
         
         # Split text into chunks
         async def process_pipeline():
+            # Step 1: Split text into chunks
             chunks_result = await splitter.run(text=text_content)
             
             # Step 2: Chunk Embedder
             chunk_embedder = TextChunkEmbedder(embedder=embedder)
             embedded_chunks = await chunk_embedder.run(text_chunks=chunks_result)
             
+            # CRITICAL FIX: Set metadata in the exact format the lexical graph expects
+            if hasattr(embedded_chunks, 'chunks') and embedded_chunks.chunks:
+                for i, chunk in enumerate(embedded_chunks.chunks):
+                    if not hasattr(chunk, 'metadata'):
+                        chunk.metadata = {}
+                    elif chunk.metadata is None:
+                        chunk.metadata = {}
+                    
+                    # Remove embedding from metadata if present (it bloats the metadata)
+                    if 'embedding' in chunk.metadata:
+                        del chunk.metadata['embedding']
+                    
+                    # Set the document metadata structure the lexical graph expects
+                    # The key issue: it needs BOTH 'document' dict AND 'document_id' at root level
+                    chunk.metadata.update({
+                        'document_id': source_info,
+                        'document': {
+                            'id': source_info,
+                            'path': source_info,
+                            'title': source_info,
+                        },
+                        'source': source_info,
+                        'chunk_id': f"{source_info}_chunk_{i}",
+                        'chunk_index': i,
+                    })
+            
+            # Also try setting metadata at the container level
+            if hasattr(embedded_chunks, 'metadata'):
+                if not embedded_chunks.metadata:
+                    embedded_chunks.metadata = {}
+                embedded_chunks.metadata.update({
+                    'document_id': source_info,
+                    'document': {
+                        'id': source_info,
+                        'path': source_info,
+                        'title': source_info,
+                    }
+                })
+            
             # Step 3: Schema Builder (if schema provided)
             schema = None
             if node_types or relationship_types:
                 schema_builder = SchemaBuilder()
                 
-                # Convert to proper types
                 node_type_objects = []
                 for nt in node_types:
                     if isinstance(nt, str):
                         node_type_objects.append(NodeType(label=nt))
                     elif isinstance(nt, dict):
-                        props = [PropertyType(**p) for p in nt.get("properties", [])]
+                        props = _to_property_types(nt.get("properties", []))
                         node_type_objects.append(
                             NodeType(
                                 label=nt["label"],
@@ -145,7 +262,7 @@ def kg_updater(
                     if isinstance(rt, str):
                         rel_type_objects.append(RelationshipType(label=rt))
                     elif isinstance(rt, dict):
-                        props = [PropertyType(**p) for p in rt.get("properties", [])]
+                        props = _to_property_types(rt.get("properties", []))
                         rel_type_objects.append(
                             RelationshipType(
                                 label=rt["label"],
@@ -159,12 +276,17 @@ def kg_updater(
                     relationship_types=rel_type_objects,
                     patterns=patterns if patterns else None
                 )
-                schema = schema_result.schema
+                schema_candidate = getattr(schema_result, "graph_schema", None)
+                if schema_candidate is None:
+                    attr = getattr(schema_result, "schema", None)
+                    schema_candidate = attr if (attr is not None and not callable(attr)) else None
+                schema = schema_candidate or schema_result
             
             # Step 4: Entity & Relation Extractor
+            # Try with create_lexical_graph=False first to see if that's causing issues
             extractor = LLMEntityRelationExtractor(
                 llm=llm,
-                create_lexical_graph=True  # Creates Document and Chunk nodes
+                create_lexical_graph=True
             )
             
             # Extract entities and relationships
@@ -180,7 +302,7 @@ def kg_updater(
             return write_result, len(embedded_chunks.chunks)
         
         # Run the async pipeline
-        result, num_chunks = asyncio.run(process_pipeline())
+        result, num_chunks = _run_async_safely(process_pipeline())
         
         driver.close()
         
@@ -317,7 +439,7 @@ def kg_retriever(
             return results
         
         # Run async retrieval
-        retrieved_data = asyncio.run(retrieve_knowledge())
+        retrieved_data = _run_async_safely(retrieve_knowledge())
         
         driver.close()
         
@@ -336,5 +458,158 @@ def kg_retriever(
         return json.dumps({
             "status": "error",
             "message": f"Error retrieving from knowledge graph: {str(e)}",
+            "error_type": type(e).__name__
+        })
+
+
+def hs_neo4j_upsert_documents(
+    documents: Annotated[str, "JSON array of Haystack Document dicts or plain texts"],
+    embedding_model: Annotated[str, "SentenceTransformers model name" ] = "sentence-transformers/all-MiniLM-L6-v2",
+    index: Annotated[Optional[str], "Neo4j vector index name"] = None,
+    node_label: Annotated[str, "Neo4j node label for documents"] = "Document",
+    embedding_field: Annotated[str, "Property name for embeddings"] = "embedding",
+    database: Annotated[str, "Neo4j database name"] = "neo4j"
+) -> str:
+    """
+    Upsert documents into Neo4j via Haystack's Neo4jDocumentStore.
+    Accepts a JSON string that is either:
+      - an array of strings (treated as content), or
+      - an array of Haystack Document-like dicts: {content, id?, meta?, embedding?}
+    """
+    try:
+        if not HAYSTACK_NEO4J_AVAILABLE:
+            return json.dumps({
+                "status": "error",
+                "message": "Haystack Neo4j integration not available. Install haystack-ai and neo4j-haystack."
+            })
+
+        data = json.loads(documents)
+        if not isinstance(data, list):
+            return json.dumps({"status": "error", "message": "documents must be a JSON array"})
+
+        # Prepare Haystack Documents
+        hs_docs: List[Document] = []
+        for item in data:
+            if isinstance(item, str):
+                hs_docs.append(Document(content=item))
+            elif isinstance(item, dict):
+                content = item.get("content")
+                if not isinstance(content, str):
+                    return json.dumps({"status": "error", "message": "Each dict doc must include string 'content'"})
+                hs_docs.append(Document(
+                    id=item.get("id"),
+                    content=content,
+                    meta=item.get("meta") or {},
+                    embedding=item.get("embedding")
+                ))
+            else:
+                return json.dumps({"status": "error", "message": "Unsupported document item type"})
+
+        # Embed if no embeddings provided
+        need_embedding = any(d.embedding is None for d in hs_docs)
+        if need_embedding:
+            embedder = SentenceTransformersDocumentEmbedder(model=embedding_model)
+            embedder.warm_up()
+            result = embedder.run(documents=hs_docs)
+            hs_docs = result["documents"]  # enriched with embeddings
+
+        # Connect to Neo4j and write
+        uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+        username = os.getenv("NEO4J_USERNAME", "neo4j")
+        password = os.getenv("NEO4J_PASSWORD", "passw0rd")
+
+        # Infer embedding dim from first document
+        first_emb = next((d.embedding for d in hs_docs if d.embedding is not None), None)
+        if first_emb is None:
+            return json.dumps({"status": "error", "message": "No embeddings available after embedding step"})
+        embedding_dim = len(first_emb)
+
+        doc_store = Neo4jDocumentStore(
+            url=uri,
+            username=username,
+            password=password,
+            database=database,
+            embedding_dim=embedding_dim,
+            embedding_field=embedding_field,
+            index=index or "document_embeddings",
+            node_label=node_label,
+        )
+
+        doc_store.write_documents(hs_docs)
+
+        return json.dumps({
+            "status": "success",
+            "message": f"Upserted {len(hs_docs)} documents into Neo4j via Haystack",
+            "details": {"index": index or "document_embeddings", "node_label": node_label}
+        })
+    except Exception as e:
+        return json.dumps({
+            "status": "error",
+            "message": f"Haystack Neo4j upsert failed: {str(e)}",
+            "error_type": type(e).__name__
+        })
+
+
+def hs_neo4j_retrieve(
+    query: Annotated[str, "Natural language query"],
+    embedding_model: Annotated[str, "SentenceTransformers model name"] = "sentence-transformers/all-MiniLM-L6-v2",
+    top_k: Annotated[int, "Number of results"] = 5,
+    index: Annotated[Optional[str], "Neo4j vector index name"] = None,
+    node_label: Annotated[str, "Neo4j node label for documents"] = "Document",
+    embedding_field: Annotated[str, "Property name for embeddings"] = "embedding",
+    database: Annotated[str, "Neo4j database name"] = "neo4j"
+) -> str:
+    """
+    Retrieve documents from Neo4j via Haystack's Neo4jEmbeddingRetriever.
+    """
+    try:
+        if not HAYSTACK_NEO4J_AVAILABLE:
+            return json.dumps({
+                "status": "error",
+                "message": "Haystack Neo4j integration not available. Install haystack-ai and neo4j-haystack."
+            })
+
+        uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+        username = os.getenv("NEO4J_USERNAME", "neo4j")
+        password = os.getenv("NEO4J_PASSWORD", "passw0rd")
+
+        # Build a document store aligned with how data was inserted
+        # We need embedding dim to init the store; use the embedder to get it
+        embedder = SentenceTransformersDocumentEmbedder(model=embedding_model)
+        embedder.warm_up()
+        emb_dim = embedder.embedding_dimension if hasattr(embedder, "embedding_dimension") else 384
+
+        document_store = Neo4jDocumentStore(
+            url=uri,
+            username=username,
+            password=password,
+            database=database,
+            embedding_dim=emb_dim,
+            embedding_field=embedding_field,
+            index=index or "document_embeddings",
+            node_label=node_label,
+        )
+
+        retriever = Neo4jEmbeddingRetriever(document_store=document_store, top_k=top_k)
+        result = retriever.run(query=query)
+        docs: List[Document] = result.get("documents", [])
+
+        return json.dumps({
+            "status": "success",
+            "message": f"Retrieved {len(docs)} documents via Haystack Neo4j",
+            "results": [
+                {
+                    "id": d.id,
+                    "content": d.content,
+                    "meta": d.meta,
+                    "score": getattr(d, "score", None)
+                }
+                for d in docs
+            ]
+        })
+    except Exception as e:
+        return json.dumps({
+            "status": "error",
+            "message": f"Haystack Neo4j retrieval failed: {str(e)}",
             "error_type": type(e).__name__
         })

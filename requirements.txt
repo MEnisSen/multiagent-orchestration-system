@@ -21,6 +21,11 @@ sentence-transformers>=2.2.0
 # faiss-cpu  # For FAISS document store
 # elasticsearch>=8.0.0  # For Elasticsearch document store
 # pinecone-client  # For Pinecone vector store
+neo4j>=5.0.0
+neo4j-graphrag>=0.6.0
+# Optional: Haystack + Neo4j document store integration
+# To enable hs_neo4j_* tools, install neo4j-haystack
+# neo4j-haystack
 
 # Optional: Additional tools
 # datasets  # For loading example datasets
@@ -49,6 +54,5 @@ aiofiles>=23.0.0
 
 # PDF processing libraries
 pymupdf>=1.23.0
-pdf2image>=3.1.0
 PyPDF2>=3.0.0
 pdfplumber>=0.9.0

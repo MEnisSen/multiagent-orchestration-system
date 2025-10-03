@@ -288,4 +288,10 @@ if __name__ == "__main__":
     print("🚀 Starting Agent Communication Bridge...")
     print("📡 Frontend can connect to: http://localhost:8000")
     print("📚 API docs available at: http://localhost:8000/docs")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        access_log=False,   # reduce access log noise
+        log_level="warning" # only warnings and above
+    )

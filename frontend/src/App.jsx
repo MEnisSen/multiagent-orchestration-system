@@ -29,7 +29,7 @@ function App() {
     fetchSystemStatus()
   }, [])
 
-  // Poll for new messages every 500ms for more responsive updates (unless paused)
+  // Poll periodically for updates (reduce frequency to lower backend load)
   useEffect(() => {
     const interval = setInterval(async () => {
       if (!pausePolling) {
@@ -41,10 +41,10 @@ function App() {
             fetchGeneratedFiles()
           ])
         } finally {
-          setTimeout(() => setIsUpdating(false), 500) // Longer flash for debugging visibility
+          setTimeout(() => setIsUpdating(false), 250)
         }
       }
-    }, 100)  // Ultra-fast polling for debugging visual lag
+    }, 1500)
 
     return () => clearInterval(interval)
   }, [pausePolling])
