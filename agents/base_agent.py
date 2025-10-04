@@ -4,7 +4,8 @@ import random
 import re
 from abc import ABC, abstractmethod
 
-from openai import OpenAI
+from haystack_integrations.components.generators.ollama import OllamaChatGenerator
+from haystack.dataclasses import ChatMessage
 import json
 
 
@@ -34,38 +35,35 @@ class BaseAgent(ABC):
     """
     
     name: str = "BaseAgent"
-    model: str = "gpt-4o-mini"
-    api_key: Optional[str] = None
-    base_url: Optional[str] = None
+    model: str = "gemma3:4b"
+    url: str = "http://localhost:11434"
     instructions: str = "You are a helpful AI agent."
     functions: List[Callable] = field(default_factory=list)
     verbose: bool = True
     
     def __post_init__(self):
         """Initialize the agent after dataclass initialization."""
-        # Initialize OpenAI client
-        client_kwargs = {}
-        if self.api_key:
-            client_kwargs['api_key'] = self.api_key
-        if self.base_url:
-            client_kwargs['base_url'] = self.base_url
+        # Initialize OllamaChatGenerator
+        self.generator = OllamaChatGenerator(
+            model=self.model,
+            url=self.url,
+            generation_kwargs={
+                "temperature": 0.7,
+                "top_p": 0.9,
+            }
+        )
         
-        self.client = OpenAI(**client_kwargs)
-        
-        # Convert functions to OpenAI tool format
+        # Convert functions to tool format (simplified for Haystack)
         self.tools = self._create_tools() if self.functions else None
     
     def _create_tools(self) -> List[Dict[str, Any]]:
-        """Convert Python functions to OpenAI tool format."""
+        """Convert Python functions to tool format for Haystack."""
         tools = []
         for func in self.functions:
             tool = {
-                "type": "function",
-                "function": {
-                    "name": func.__name__,
-                    "description": func.__doc__ or f"Function {func.__name__}",
-                    "parameters": self._get_function_schema(func)
-                }
+                "name": func.__name__,
+                "description": func.__doc__ or f"Function {func.__name__}",
+                "parameters": self._get_function_schema(func)
             }
             tools.append(tool)
         return tools
@@ -143,65 +141,44 @@ class BaseAgent(ABC):
             - next_agent_name: Name of the agent to run next (for handoffs)
             - new_messages: List of new message dicts generated (including tool results)
         """
-        # Add system message
-        full_messages = [{"role": "system", "content": self.instructions}] + messages
+        # Convert messages to Haystack ChatMessage format
+        haystack_messages = [ChatMessage.from_system(self.instructions)]
         
-        # Generate response from the LLM
-        response_kwargs = {"model": self.model, "messages": full_messages}
-        if self.tools:
-            response_kwargs["tools"] = self.tools
+        for msg in messages:
+            if msg["role"] == "user":
+                haystack_messages.append(ChatMessage.from_user(msg["content"]))
+            elif msg["role"] == "assistant":
+                haystack_messages.append(ChatMessage.from_assistant(msg["content"]))
+            elif msg["role"] == "system":
+                # Skip system messages as we already have the instructions
+                continue
         
-        response = self.client.chat.completions.create(**response_kwargs)
-        
-        assistant_message = response.choices[0].message
-        new_messages = []
-        
-        # Add assistant message
-        message_dict = {"role": "assistant", "content": assistant_message.content or ""}
-        
-        # Print agent response if verbose
-        if assistant_message.content and self.verbose:
-            print(f"\n{self.name}: {assistant_message.content}")
-        
-        # Handle tool calls
-        if assistant_message.tool_calls:
-            message_dict["tool_calls"] = [
-                {
-                    "id": tc.id,
-                    "type": "function",
-                    "function": {
-                        "name": tc.function.name,
-                        "arguments": tc.function.arguments
-                    }
-                }
-                for tc in assistant_message.tool_calls
-            ]
-            new_messages.append(message_dict)
+        # Generate response using OllamaChatGenerator
+        try:
+            response = self.generator.run(messages=haystack_messages)
+            assistant_content = response["replies"][0].text
             
-            # Execute tool calls
+            # Print agent response if verbose
+            if assistant_content and self.verbose:
+                print(f"\n{self.name}: {assistant_content}")
+            
+            # Create new messages list
+            new_messages = [{"role": "assistant", "content": assistant_content}]
+            
+            # Check for handoff in the response
             next_agent_name = self.name
-            for tool_call in assistant_message.tool_calls:
-                function_name = tool_call.function.name
-                arguments = tool_call.function.arguments
-                
-                result = self._invoke_function(function_name, arguments)
-                
-                # Add tool result message
-                tool_message = {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": result
-                }
-                new_messages.append(tool_message)
-                
-                # Check for handoff
-                match = re.search(HANDOFF_PATTERN, result)
-                if match:
-                    next_agent_name = match.group(1)
+            match = re.search(HANDOFF_PATTERN, assistant_content)
+            if match:
+                next_agent_name = match.group(1)
             
             return next_agent_name, new_messages
-        else:
-            new_messages.append(message_dict)
+            
+        except Exception as e:
+            error_msg = f"Error generating response: {str(e)}"
+            if self.verbose:
+                print(f"\n{self.name}: {error_msg}")
+            
+            new_messages = [{"role": "assistant", "content": error_msg}]
             return self.name, new_messages
     
     @abstractmethod
@@ -260,6 +237,7 @@ class BaseAgent(ABC):
         return {
             "name": self.name,
             "model": self.model,
+            "url": self.url,
             "instructions": self.instructions,
             "num_tools": len(self.functions) if self.functions else 0,
             "tool_names": [f.__name__ for f in self.functions] if self.functions else []

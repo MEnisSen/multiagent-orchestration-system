@@ -53,19 +53,20 @@ def initialize_agents():
     """Initialize the actual agent system."""
     global agents_dict
     try:
-        # Check for OpenAI API key
-        if not os.getenv("OPENAI_API_KEY"):
-            print("❌ OPENAI_API_KEY environment variable not set")
-            print("   Please set it using: export OPENAI_API_KEY='your-api-key-here'")
-            return False
-        
-        agents_dict = create_coding_agents()
+        # Initialize agents with Ollama configuration
+        agents_dict = create_coding_agents(
+            orchestrator_model="gemma3:4b",
+            coder_model="gemma3:4b", 
+            tester_model="gemma3:4b",
+            database_model="gemma3:4b",
+            url="http://localhost:11434"
+        )
         print(f"✓ Initialized {len(agents_dict)} agents: {list(agents_dict.keys())}")
+        print("   Using Ollama with gemma3:4b model")
         return True
     except Exception as e:
         print(f"❌ Error initializing agents: {e}")
-        if "api_key" in str(e).lower():
-            print("   Make sure OPENAI_API_KEY environment variable is set")
+        print("   Make sure Ollama is running on http://localhost:11434")
         return False
 
 # Message conversion functions are now in programmatic_agent_runner.py

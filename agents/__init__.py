@@ -12,12 +12,11 @@ from .database_agent import DatabaseAgent
 
 
 def create_coding_agents(
-    orchestrator_model: str = "gpt-4o-mini",
-    coder_model: str = "gpt-4o-mini",
-    tester_model: str = "gpt-4o-mini",
-    database_model: str = "gpt-4o-mini",
-    api_key: str = None,
-    base_url: str = None
+    orchestrator_model: str = "gemma3:4b",
+    coder_model: str = "gemma3:4b",
+    tester_model: str = "gemma3:4b",
+    database_model: str = "gemma3:4b",
+    url: str = "http://localhost:11434"
 ) -> Dict[str, BaseAgent]:
     """
     Create and return a dictionary of all coding agents.
@@ -32,11 +31,7 @@ def create_coding_agents(
     Returns:
         Dictionary mapping agent names to agent instances
     """
-    common_kwargs = {}
-    if api_key:
-        common_kwargs['api_key'] = api_key
-    if base_url:
-        common_kwargs['base_url'] = base_url
+    common_kwargs = {'url': url}
     
     orchestrator = OrchestratorAgent(model=orchestrator_model, **common_kwargs)
     coder = CoderAgent(model=coder_model, **common_kwargs)
