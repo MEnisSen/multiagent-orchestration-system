@@ -82,6 +82,7 @@ def run_agent_workflow(prompt: str):
         workflow_running = True
         workflow_status = "planning"
         current_task_index = 0
+        tasks_extracted = False  # Flag to extract tasks only once from initial plan
         
         # Clear previous state
         current_conversation = []
@@ -125,25 +126,18 @@ def run_agent_workflow(prompt: str):
                 msgs = extract_agent_communications([msg])
                 messages_store.extend(msgs)
                 
-                # Incrementally try to extract tasks and keep a compact unique list
-                extracted = extract_tasks_from_messages([msg])
-                for t in extracted:
-                    if not any(existing.get("description") == t.get("description") for existing in tasks_store):
-                        tasks_store.append(t)
-                
-                # Heuristic progress updates
-                if "create_function" in str(msg) or "fix_function" in str(msg):
-                    if len(tasks_store) > 0:
-                        tasks_store[0]["status"] = "completed"
-                        current_task_index = max(current_task_index, 1)
-                if "write_unit_tests" in str(msg) or "run_unit_tests" in str(msg):
-                    if len(tasks_store) > 1:
-                        tasks_store[min(1, len(tasks_store)-1)]["status"] = "completed"
-                        current_task_index = max(current_task_index, 2)
-                if "finalize" in str(msg).lower():
-                    for task in tasks_store:
-                        task["status"] = "completed"
-                    current_task_index = len(tasks_store)
+                # Check for task list created by the Orchestrator using create_task_list tool
+                tasks_file = Path(".agent_workspace") / "_active_tasks.json"
+                if tasks_file.exists() and not tasks_extracted:
+                    try:
+                        with open(tasks_file, 'r', encoding='utf-8') as f:
+                            loaded_tasks = json.load(f)
+                            if loaded_tasks:
+                                tasks_store = loaded_tasks
+                                tasks_extracted = True
+                                print(f"📋 Loaded {len(tasks_store)} tasks from task list")
+                    except Exception as e:
+                        print(f"Warning: Could not load tasks from file: {e}")
             
             iterations += 1
             # Track whether we're handing off; if not, allow a few self-steps before stopping
@@ -265,9 +259,20 @@ async def get_messages(limit: int = 50):
 @app.get("/tasks")
 async def get_tasks():
     """Get current tasks."""
+    # Check if there's a task file created by the Orchestrator
+    tasks_file = Path(".agent_workspace") / "_active_tasks.json"
+    current_tasks = tasks_store
+    
+    if tasks_file.exists():
+        try:
+            with open(tasks_file, 'r', encoding='utf-8') as f:
+                current_tasks = json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not load tasks from file: {e}")
+    
     return {
         "status": "success",
-        "tasks": tasks_store,
+        "tasks": current_tasks,
         "currentTaskIndex": current_task_index,
         "workflowStatus": workflow_status
     }

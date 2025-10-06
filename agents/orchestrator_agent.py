@@ -5,6 +5,7 @@ Manages the entire coding workflow and coordinates between other agents.
 
 from .base_agent import BaseAgent, create_handoff_function
 from tools import read_file, list_directory, finalize_function
+from tools.task_tools import create_task_list, update_task_status
 
 
 class OrchestratorAgent(BaseAgent):
@@ -47,10 +48,10 @@ class OrchestratorAgent(BaseAgent):
             "   - Identify the task domain (e.g., coding, testing, data/knowledge operations, research, writing, analysis, planning, Q&A).\n"
             "   - Decide if existing agents/tools are applicable; if yes, orchestrate them. If not, proceed directly with a helpful answer without unnecessary tool calls.\n"
             "2. Coding-related tasks (retain existing capabilities):\n"
-            "   - Parse requests and create detailed task lists with:\n"
-            "     • Function name and purpose (when applicable)\n"
-            "     • Target file path (when applicable)\n"
-            "     • Implementation requirements (when applicable)\n"
+            "   - For complex, multi-step requests, FIRST use create_task_list to break down the work into clear tasks.\n"
+            "   - Each task should be a specific, actionable step (e.g., 'Implement add function', 'Write unit tests').\n"
+            "   - The task list will be shown in the UI, helping users track progress.\n"
+            "   - Use update_task_status to mark tasks as 'in_progress' or 'completed' as work proceeds.\n"
             "   - Use read_file and list_directory to understand existing code structure.\n"
             "   - Coordinate the workflow:\n"
             "     a. Send coding tasks to Coder Agent\n"
@@ -83,6 +84,8 @@ class OrchestratorAgent(BaseAgent):
         self.add_tool(read_file)
         self.add_tool(list_directory)
         self.add_tool(finalize_function)
+        self.add_tool(create_task_list)
+        self.add_tool(update_task_status)
         
         # Add handoff functions
         for handoff_func in self.get_handoff_functions():
