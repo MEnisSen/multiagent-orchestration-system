@@ -58,7 +58,7 @@ const HeroPrompt = ({ onSubmitPrompt, isLoading, isSubmitted = false, submittedP
     <div className="w-full flex flex-col items-center">
       {!isSubmitted && (
         <div className="text-center mb-4">
-          <h1 className="text-3xl font-semibold text-gray-800">How can I help?</h1>
+          <h1 className="text-3xl font-semibold text-gray-800">How can 'we' help?</h1>
         </div>
       )}
 
