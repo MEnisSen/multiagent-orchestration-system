@@ -1,87 +1,67 @@
 # Multi-Agent Orchestration System
 
-A multi-agent system that coordinates specialized AI agents to handle coding tasks, with real-time web visualization of agent interactions and tool usage.
+A multi-agent system powered by Haystack AI that coordinates specialized agents to handle complex coding and research tasks.
 
 ![Agent Network Visualization](docs/agent_network_visualization.png)
 
-## What This Does
+## Agents
 
-This system uses multiple AI agents that work together to:
-- **Orchestrator**: Plans and coordinates the workflow
-- **Coder**: Implements functions and fixes code
-- **Tester**: Writes tests and validates functionality  
-- **Database**: Manages knowledge graph operations
-
-Each agent has specialized tools and can hand off tasks to other agents, creating a collaborative workflow that you can watch in real-time through the web interface.
+- **Orchestrator**: Plans workflows and coordinates other agents
+- **Coder**: Implements code and fixes issues
+- **Tester**: Writes and runs unit tests
+- **Database**: Manages Neo4j knowledge graph operations
+- **Research**: Performs web searches and gathers information
 
 ## Quick Setup
 
 ### Prerequisites
 - Python 3.8+ (3.12 was used for demo)
 - Node.js 16+
-- OpenAI API key (Can be switched with Ollama easily within the haystack-ai definitions)
+- OpenAI API key
+- (Optional) SerperDev API key for web search
 
 ### Installation
 
 ```bash
-# Install Python dependencies
+# Backend
 pip install -r requirements.txt
 
-# Install frontend dependencies
-cd frontend
-npm install
-cd ..
+# Frontend
+cd frontend && npm install && cd ..
 ```
 
-### System Dependencies (if needed)
+### Configure API Keys
 
+Create a `.env` file in the project root:
 ```bash
-# For PDF processing (if using document upload)
-sudo apt-get install poppler-utils
-
-# For Docker/Ollama (if using local models)
-sudo apt-get install docker.io
+OPENAI_API_KEY=your-openai-key
+SERPERDEV_API_KEY=your-serperdev-key  # Optional, for research agent
 ```
 
-### Set API Key
+## Running
 
 ```bash
-export OPENAI_API_KEY='your-api-key-here'
-```
-
-## Running the Demo
-
-### Option 1: Automated startup
-```bash
+# Start both backend and frontend
 python start_system.py
+
+# Or manually:
+# Terminal 1: python real_agent_bridge.py
+# Terminal 2: cd frontend && npm run dev
 ```
 
-### Option 2: Manual startup
-```bash
-# Terminal 1: Start backend
-python real_agent_bridge.py
+Access at: **http://localhost:5173**
 
-# Terminal 2: Start frontend  
-cd frontend
-npm run dev
-```
+## Usage
 
-### Access the Interface
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-
-## How to Use
-
-1. Enter a coding request (e.g., "Create a fibonacci calculator")
-2. Click "Start Agent Workflow"
-3. Watch agents coordinate in the network diagram
-4. Monitor progress in real-time
-5. Review generated files and test results
+1. Enter your request in the prompt
+2. Watch agents collaborate in real-time
+3. Monitor tasks and orchestrator updates
+4. Review generated files at the bottom
 
 ## Features
 
-- **Real-time Visualization**: See agent interactions and tool usage
-- **Document Upload**: Process PDFs and other documents with AI
-- **Task Tracking**: Monitor workflow progress
-- **Tool Highlighting**: See which tools are being used when
-- **Step-by-step Navigation**: Browse through the conversation history
+- **Real-time Visualization**: Agent network with live message flow
+- **Task Tracking**: See workflow progress and orchestrator updates
+- **Web Search**: Research agent can gather information from the web
+- **Tool Usage**: Agents use specialized tools (file ops, testing, database, web search)
+- **Reset Button**: Clear workspace and restart system
