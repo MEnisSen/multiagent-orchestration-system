@@ -43,7 +43,7 @@ const FilesBar = ({ files = [] }) => {
       {/* Overlay Preview (fixed, does not affect layout) */}
       {fileToPreview && (
         <div
-          className="fixed left-1/2 bottom-24 -translate-x-1/2 z-50 w-[min(92vw,1000px)] max-h-[60vh] border rounded-xl shadow-2xl overflow-hidden bg-white"
+          className="fixed left-1/2 bottom-24 -translate-x-1/2 z-50 w-[min(92vw,1200px)] max-h-[75vh] border rounded-xl shadow-2xl overflow-hidden bg-white"
           onMouseEnter={() => setHoveredFile(fileToPreview)}
           onMouseLeave={() => {
             if (!pinnedFile) setHoveredFile(null)
@@ -64,8 +64,8 @@ const FilesBar = ({ files = [] }) => {
               </button>
             )}
           </div>
-          <div className="max-h-[60vh] overflow-auto bg-gray-900">
-            <pre className="text-green-400 text-xs p-4 whitespace-pre-wrap">{fileToPreview.content}</pre>
+          <div className="max-h-[72vh] overflow-auto bg-gray-900">
+            <pre className="text-green-400 text-sm p-4 whitespace-pre-wrap">{fileToPreview.content}</pre>
           </div>
 
           {/* Notch pointer */}

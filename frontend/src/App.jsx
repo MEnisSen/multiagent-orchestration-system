@@ -220,6 +220,12 @@ function App() {
       })
       const data = await response.json()
       console.log('Prompt submission result:', data)
+      if (data.status !== 'success') {
+        const msg = data.message || 'Failed to start workflow.'
+        alert(msg)
+        setWorkflowStatus('idle')
+        return
+      }
       setHasSubmitted(true)
       setSubmittedPrompt(prompt)
       setSubmittedDocuments(documents || [])
@@ -280,6 +286,41 @@ function App() {
     }
   }
 
+  const handleReset = async () => {
+    if (!confirm('Reset the entire system? This will clear all messages, files, and return to the initial screen.')) {
+      return
+    }
+    
+    try {
+      // Call backend reset endpoint
+      const response = await fetch(`${API_BASE}/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      
+      if (response.ok) {
+        // Reset frontend state
+        setMessages([])
+        setTasks([])
+        setGeneratedFiles([])
+        setHasSubmitted(false)
+        setSubmittedPrompt('')
+        setSubmittedDocuments([])
+        setWorkflowStatus('idle')
+        setCurrentTaskIndex(0)
+        
+        // Refresh data
+        setTimeout(() => {
+          fetchAgents()
+          fetchSystemStatus()
+        }, 500)
+      }
+    } catch (error) {
+      console.error('Error resetting system:', error)
+      alert('Failed to reset system. Please refresh the page.')
+    }
+  }
+
   // Compute sliding window available height (viewport minus sticky bars)
   const topBarPx = topBarActive ? 96 : 0 // approx sticky header height when active
   const bottomBarPx = hasSubmitted && generatedFiles.length > 0 ? 80 : 0 // approx sticky footer height
@@ -288,26 +329,43 @@ function App() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       
-      {/* Live Update Indicator - Top Right Corner */}
-      <div className="fixed top-4 right-4 z-50">
-        <div className={`
-          w-3 h-3 rounded-full transition-all duration-300 shadow-lg
-          ${isUpdating 
-            ? 'bg-blue-500 animate-pulse shadow-blue-300 shadow-lg' 
-            : 'bg-gray-400 shadow-gray-300'
-          }
-        `}>
+      {/* Top Right Corner - Reset Button and Live Update Indicator */}
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-3">
+        {/* Reset Button */}
+        <button
+          onClick={handleReset}
+          className="group relative px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl"
+          title="Reset system"
+        >
+          <span className="flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Reset
+          </span>
+        </button>
+
+        {/* Live Update Indicator */}
+        <div className="relative">
           <div className={`
-            absolute inset-0 rounded-full transition-all duration-1000
+            w-3 h-3 rounded-full transition-all duration-300 shadow-lg
             ${isUpdating 
-              ? 'bg-blue-400 animate-ping opacity-75' 
-              : 'opacity-0'
+              ? 'bg-blue-500 animate-pulse shadow-blue-300 shadow-lg' 
+              : 'bg-gray-400 shadow-gray-300'
             }
-          `}></div>
-        </div>
-        {/* Tooltip on hover */}
-        <div className="absolute top-full right-0 mt-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-          {isUpdating ? 'Live updates active' : 'Monitoring...'}
+          `}>
+            <div className={`
+              absolute inset-0 rounded-full transition-all duration-1000
+              ${isUpdating 
+                ? 'bg-blue-400 animate-ping opacity-75' 
+                : 'opacity-0'
+              }
+            `}></div>
+          </div>
+          {/* Tooltip on hover */}
+          <div className="absolute top-full right-0 mt-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            {isUpdating ? 'Live updates active' : 'Monitoring...'}
+          </div>
         </div>
       </div>
 

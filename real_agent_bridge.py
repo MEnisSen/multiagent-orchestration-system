@@ -17,6 +17,10 @@ import os
 import tempfile
 import shutil
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import your actual agent system
 from agents import create_coding_agents
@@ -53,20 +57,19 @@ def initialize_agents():
     """Initialize the actual agent system."""
     global agents_dict
     try:
-        # Initialize agents with Ollama configuration
-        agents_dict = create_coding_agents(
-            orchestrator_model="gemma3:4b",
-            coder_model="gemma3:4b", 
-            tester_model="gemma3:4b",
-            database_model="gemma3:4b",
-            url="http://localhost:11434"
-        )
+        # Check for OpenAI API key
+        if not os.getenv("OPENAI_API_KEY"):
+            print("❌ OPENAI_API_KEY environment variable not set")
+            print("   Please set it using: export OPENAI_API_KEY='your-api-key-here'")
+            return False
+        
+        agents_dict = create_coding_agents()
         print(f"✓ Initialized {len(agents_dict)} agents: {list(agents_dict.keys())}")
-        print("   Using Ollama with gemma3:4b model")
         return True
     except Exception as e:
         print(f"❌ Error initializing agents: {e}")
-        print("   Make sure Ollama is running on http://localhost:11434")
+        if "api_key" in str(e).lower():
+            print("   Make sure OPENAI_API_KEY environment variable is set")
         return False
 
 # Message conversion functions are now in programmatic_agent_runner.py
@@ -391,7 +394,7 @@ async def submit_prompt(request: PromptRequest, background_tasks: BackgroundTask
 
 @app.post("/reset")
 async def reset_system():
-    """Reset the system state."""
+    """Reset the system state and clear workspace."""
     global workflow_status, current_task_index, messages_store, tasks_store, files_store, current_conversation, workflow_running
     
     workflow_running = False
@@ -402,9 +405,21 @@ async def reset_system():
     current_task_index = 0
     workflow_status = "idle"
     
+    # Clear .agent_workspace directory
+    workspace_path = Path(".agent_workspace")
+    if workspace_path.exists():
+        try:
+            for item in workspace_path.iterdir():
+                if item.is_file():
+                    item.unlink()
+                elif item.is_dir():
+                    shutil.rmtree(item)
+        except Exception as e:
+            print(f"Warning: Could not fully clear workspace: {e}")
+    
     return {
         "status": "success",
-        "message": "System reset successfully"
+        "message": "System reset successfully - workspace cleared"
     }
 
 if __name__ == "__main__":

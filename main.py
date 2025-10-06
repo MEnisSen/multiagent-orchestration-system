@@ -18,6 +18,7 @@ def setup_workspace():
 def check_environment():
     """Check required environment variables."""
     required_vars = {
+        "OPENAI_API_KEY": "OpenAI API key for LLM operations",
         "NEO4J_URI": "Neo4j database URI (default: bolt://localhost:7687)",
         "NEO4J_USERNAME": "Neo4j username (default: neo4j)",
         "NEO4J_PASSWORD": "Neo4j passw0rd"
@@ -25,6 +26,10 @@ def check_environment():
     
     missing_vars = []
     warnings = []
+    
+    # Check critical variables
+    if not os.getenv("OPENAI_API_KEY"):
+        missing_vars.append("OPENAI_API_KEY")
     
     # Check Neo4j variables (warnings only)
     if not os.getenv("NEO4J_URI"):
@@ -38,6 +43,8 @@ def check_environment():
         print("❌ Error: Missing required environment variables:")
         for var in missing_vars:
             print(f"  • {var}: {required_vars[var]}")
+        print("\nPlease set them using:")
+        print("  export OPENAI_API_KEY='your-api-key-here'")
         return False
     
     if warnings:
@@ -61,7 +68,7 @@ def print_banner():
 ║          🤖 AI CODING ASSISTANT SYSTEM 🤖                 ║
 ║                                                           ║
 ║  Multi-Agent System for Code Generation and Testing       ║
-║    Powered by Ollama (gemma3:4b) + Neo4j Knowledge Graph   ║
+║         with Neo4j Knowledge Graph Integration            ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
 
@@ -112,14 +119,24 @@ def main():
     print("Initializing agents...")
     print("="*60)
     
-    # Create agents using Ollama with gemma3:4b model
+    # Create agents
+    # You can customize models for each agent
     agents = create_coding_agents(
-        orchestrator_model="gemma3:4b",
-        coder_model="gemma3:4b",
-        tester_model="gemma3:4b",
-        database_model="gemma3:4b",
-        url="http://localhost:11434"
+        orchestrator_model="gpt-4o-mini",
+        coder_model="gpt-4o-mini",
+        tester_model="gpt-4o-mini",
+        database_model="gpt-4o-mini"
     )
+    
+    # For using Ollama for specific agents (uncomment and adjust):
+    # agents = create_coding_agents(
+    #     orchestrator_model="gpt-4o-mini",
+    #     coder_model="gpt-4o-mini",
+    #     tester_model="llama3.2:3b",  # Use local model for testing
+    #     database_model="gpt-4o-mini",
+    #     base_url="http://localhost:11434/v1",
+    #     api_key="ollama"
+    # )
     
     # Print agent info
     print("\n✓ Agents initialized:\n")
