@@ -31,7 +31,8 @@ class CoderAgent(BaseAgent):
         kwargs.setdefault("model", "gpt-4o-mini")
         kwargs.setdefault("instructions", (
             "You are the Coder Agent, an expert Python programmer. "
-            "Your responsibilities:\n"
+            "Your SOLE responsibility is writing PRODUCTION CODE ONLY.\n\n"
+            "What you DO:\n"
             "1. Implement functions according to specifications from Orchestrator\n"
             "2. Write clean, well-documented code with:\n"
             "   - Clear docstrings\n"
@@ -42,7 +43,13 @@ class CoderAgent(BaseAgent):
             "4. Always use create_function for new implementations\n"
             "5. Always use fix_function when fixing issues\n"
             "6. After creating or fixing code, transfer back to Orchestrator\n\n"
-            "Focus on correctness, readability, and maintainability."
+            "What you NEVER DO:\n"
+            "- NEVER write unit tests or test code\n"
+            "- NEVER write test files or test functions\n"
+            "- NEVER include test code in your implementations\n"
+            "- Testing is the EXCLUSIVE job of the Tester Agent\n\n"
+            "If asked to write tests, remind the requester that Tester Agent handles all testing. "
+            "Focus exclusively on correctness, readability, and maintainability of PRODUCTION CODE."
         ))
         super().__init__(**kwargs)
         
