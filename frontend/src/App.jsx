@@ -339,6 +339,15 @@ function App() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       
+      {/* Top Left Corner - Logo */}
+      <div className="fixed top-4 left-4 z-50 p-2 bg-white/80 backdrop-blur-sm rounded-lg">
+        <img 
+          src="/ai4sweng_logo.png" 
+          alt="AI4SWENG Logo" 
+          className="h-10 w-auto drop-shadow-md hover:drop-shadow-lg transition-all duration-200"
+        />
+      </div>
+
       {/* Top Right Corner - Reset Button and Live Update Indicator */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-3">
         {/* Reset Button */}
@@ -406,23 +415,85 @@ function App() {
         {hasSubmitted && (
           <div className="mt-6 min-h-0 overflow-y-auto" style={{ height: slidingWindowHeight }}>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full min-h-0 overflow-visible">
-              {/* Task List (left) */}
-              <div className="lg:col-span-3 animate-fade-in-up animate-fade-in-up-delay-1 h-full min-h-0">
-                <div className="bg-white rounded-2xl shadow-lg p-6 h-full flex flex-col min-h-0">
-                  <h2 className="text-2xl font-semibold text-gray-800 mb-4">Task List</h2>
-                  <div className="flex-1 overflow-y-auto min-h-0">
-                    <TaskList 
-                      tasks={tasks}
-                      currentTaskIndex={currentTaskIndex}
-                      embedded={true}
-                    />
+              {/* Left Column - Task List (top) and Orchestrator Updates (bottom) */}
+              <div className="lg:col-span-3 animate-fade-in-up animate-fade-in-up-delay-1 h-full min-h-0 flex flex-col gap-6">
+                {/* Task List Panel */}
+                <div className="flex-1 min-h-0">
+                  <div className="bg-white rounded-2xl shadow-lg p-6 h-full flex flex-col min-h-0">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-xl font-semibold text-gray-800 flex items-center">📋 Task List</h2>
+                      {tasks && tasks.length > 0 && (
+                        <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                          {tasks.filter((_, idx) => idx < currentTaskIndex).length}/{tasks.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 overflow-y-auto min-h-0">
+                      <TaskList 
+                        tasks={tasks}
+                        currentTaskIndex={currentTaskIndex}
+                        embedded={true}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Orchestrator Updates Panel */}
+                <div className="flex-1 min-h-0">
+                  <div className="bg-white rounded-2xl shadow-xl h-full flex flex-col min-h-0 overflow-hidden">
+                    <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
+                      <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                        💬 Orchestrator Updates
+                      </h2>
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-6 py-4 bg-white">
+                      {messages.filter(msg => msg.from === 'orchestrator' && msg.to === 'user').length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <div className="text-3xl mb-2">🤖</div>
+                          <div className="text-sm">No updates yet</div>
+                          <div className="text-xs text-gray-400 mt-1">Orchestrator responses will appear here</div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {messages
+                            .filter(msg => msg.from === 'orchestrator' && msg.to === 'user')
+                            .map((msg, index) => (
+                              <div 
+                                key={msg.id || index}
+                                className="bg-gray-50 rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                              >
+                                <div className="flex items-start space-x-3">
+                                  <div className="flex-shrink-0">
+                                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                      <span className="text-white text-sm">🎯</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-semibold text-gray-800">Orchestrator</span>
+                                      {msg.timestamp && (
+                                        <span className="text-xs text-gray-500">
+                                          {new Date(msg.timestamp).toLocaleTimeString()}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-sm text-gray-700 whitespace-pre-wrap break-words">
+                                      {msg.content}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Agent Diagram (center) */}
               <div className="lg:col-span-6 animate-fade-in-up animate-fade-in-up-delay-2 h-full min-h-0 overflow-visible">
-                <div className="bg-white rounded-2xl shadow-lg p-6 h-full flex flex-col min-h-0 overflow-visible">
+                <div className="bg-white rounded-2xl shadow-xl p-6 h-full flex flex-col min-h-0 overflow-visible">
                   <h2 className="text-2xl font-semibold text-gray-800 mb-4">Agent Network</h2>
                   <div className="w-full flex-1 min-h-0 overflow-visible">
                     <AgentDiagram 
@@ -436,7 +507,7 @@ function App() {
 
               {/* Recent Messages (right) */}
               <div className="lg:col-span-3 animate-fade-in-up animate-fade-in-up-delay-3 h-full min-h-0 overflow-visible">
-                <div className="bg-white rounded-2xl shadow-lg p-6 h-full flex flex-col min-h-0 overflow-visible">
+                <div className="bg-white rounded-2xl shadow-xl p-6 h-full flex flex-col min-h-0 overflow-visible">
                   <h2 className="text-2xl font-semibold text-gray-800 mb-4">Recent Messages</h2>
                   <div className="flex-1 overflow-y-auto min-h-0" style={{ overflowX: 'visible' }}>
                     <MessageLog 
