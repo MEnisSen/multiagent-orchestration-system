@@ -35,6 +35,10 @@ class OrchestratorAgent(BaseAgent):
                 "Database Agent",
                 "Transfer to Database Agent for storing/retrieving information in Neo4j knowledge graph"
             ),
+            create_handoff_function(
+                "Research Agent",
+                "Transfer to Research Agent for web searches and gathering current information"
+            ),
         ]
     
     def __init__(self, **kwargs):

@@ -22,17 +22,24 @@ const AgentDiagram = ({ agents, messages, onMessageHover }) => {
   }, [pinnedTooltip.show])
 
   // Responsive positions for agents in the diagram (using viewBox coordinates)
-  // Layout: Orchestrator at top center, User same height left, Database agent right of orchestrator, Coder/Tester bottom
+  // Layout: Orchestrator at top center, User same height left, Database at Orchestrator level, Research above with spacing
   const viewBox = { width: 1000, height: 650 }
+  
+  // Calculate positions with equal vertical spacing
+  const orchestratorY = viewBox.height * 0.25  // Top center
+  const testerY = viewBox.height * 0.75        // Bottom
+  const verticalSpacing = (testerY - orchestratorY)
+  
   const agentPositions = {
-    orchestrator: { x: viewBox.width * 0.5, y: viewBox.height * 0.25, color: '#3B82F6' }, // Top center
-    database: { x: viewBox.width * 0.86, y: viewBox.height * 0.25, color: '#8B5CF6' },    // Moved further right
-    coder: { x: viewBox.width * 0.25, y: viewBox.height * 0.75, color: '#10B981' },       // Bottom left  
-    tester: { x: viewBox.width * 0.75, y: viewBox.height * 0.75, color: '#F59E0B' }       // Bottom right
+    orchestrator: { x: viewBox.width * 0.5, y: orchestratorY, color: '#3B82F6' },                    // Top center
+    database: { x: viewBox.width * 0.86, y: orchestratorY, color: '#8B5CF6' },                       // Same level as orchestrator
+    research: { x: viewBox.width * 0.75, y: orchestratorY - verticalSpacing, color: '#EC4899' },    // Above database by same spacing as database-tester
+    coder: { x: viewBox.width * 0.25, y: testerY, color: '#10B981' },                                // Bottom left  
+    tester: { x: viewBox.width * 0.75, y: testerY, color: '#F59E0B' }                                // Bottom right
   }
 
   // Position for the external DATABASE node (target of DB agent operations)
-  const dbNodePos = { x: viewBox.width * 0.86, y: viewBox.height * 0.42 }
+  const dbNodePos = { x: viewBox.width * 0.86, y: orchestratorY + verticalSpacing / 3 }
   // Position for USER node (kept in sync with the rendered USER group)
   const userNodePos = { x: viewBox.width * 0.14, y: viewBox.height * 0.25 }
 

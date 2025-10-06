@@ -122,22 +122,30 @@ def extract_agent_communications(messages: List[Dict[str, str]]) -> List[Dict]:
             from_agent = "user"
             to_agent = "orchestrator"
         elif role == "assistant":
-            # Try to determine which agent based on content
-            if "orchestrator" in content.lower() or i == 1:  # First response usually orchestrator
-                from_agent = "orchestrator"
-                to_agent = "user"
-            elif "coder" in content.lower() or any(tool in tools_used for tool in ["create_function", "fix_function"]):
-                from_agent = "coder"
-                to_agent = "orchestrator"
-            elif "tester" in content.lower() or any(tool in tools_used for tool in ["write_unit_tests", "run_unit_tests"]):
-                from_agent = "tester"
-                to_agent = "orchestrator"
-            elif "database" in content.lower() or any(tool in tools_used for tool in ["kg_updater", "kg_retriever"]):
-                from_agent = "database"
-                to_agent = "orchestrator"
+            # Use the tagged agent name if available
+            if '_agent_name' in msg:
+                agent_name = msg['_agent_name'].lower().replace(' agent', '').replace(' ', '_')
+                from_agent = agent_name
             else:
-                from_agent = "orchestrator"  # Default
+                # Try to determine which agent based on content
+                if "orchestrator" in content.lower() or i == 1:  # First response usually orchestrator
+                    from_agent = "orchestrator"
+                elif "coder" in content.lower() or any(tool in tools_used for tool in ["create_function", "fix_function"]):
+                    from_agent = "coder"
+                elif "tester" in content.lower() or any(tool in tools_used for tool in ["write_unit_tests", "run_unit_tests"]):
+                    from_agent = "tester"
+                elif "research" in content.lower() or any(tool in tools_used for tool in ["web_search"]):
+                    from_agent = "research"
+                elif "database" in content.lower() or any(tool in tools_used for tool in ["kg_updater", "kg_retriever"]):
+                    from_agent = "database"
+                else:
+                    from_agent = "orchestrator"  # Default
+            
+            # Determine target based on message type
+            if from_agent == "orchestrator":
                 to_agent = "user"
+            else:
+                to_agent = "orchestrator"
         elif role == "tool":
             from_agent = "system"
             to_agent = "orchestrator"

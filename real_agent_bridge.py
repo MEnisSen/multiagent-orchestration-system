@@ -192,7 +192,7 @@ async def get_agents():
                     "name": "Orchestrator Agent",
                     "capabilities": ["coordinate_workflow", "parse_requests", "manage_tasks"],
                     "model": {"provider": "openai", "id": "gpt-4o-mini"},
-                    "tools": ["read_file", "list_directory", "finalize_function", "transfer_to_coder_agent", "transfer_to_tester_agent", "transfer_to_database_agent"],
+                    "tools": ["read_file", "list_directory", "finalize_function", "create_task_list", "transfer_to_coder_agent", "transfer_to_tester_agent", "transfer_to_database_agent", "transfer_to_research_agent"],
                     "description": "Manages the entire coding workflow (API key required for actual use)"
                 },
                 {
@@ -210,6 +210,14 @@ async def get_agents():
                     "model": {"provider": "openai", "id": "gpt-4o-mini"},
                     "tools": ["setup_test_environment", "write_unit_tests", "run_unit_tests", "transfer_to_orchestrator_agent"],
                     "description": "Writes and runs tests (API key required for actual use)"
+                },
+                {
+                    "id": "research",
+                    "name": "Research Agent",
+                    "capabilities": ["web_search", "gather_information", "research"],
+                    "model": {"provider": "openai", "id": "gpt-4o-mini"},
+                    "tools": ["web_search", "transfer_to_orchestrator_agent"],
+                    "description": "Searches the web and gathers current information (API key required for actual use)"
                 },
                 {
                     "id": "database",

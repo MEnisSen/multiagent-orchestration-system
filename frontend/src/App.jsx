@@ -88,7 +88,7 @@ function App() {
           provider: "openai",
           id: "gpt-4o-mini"
         },
-        tools: ["read_file", "list_directory", "finalize_function", "transfer_to_coder_agent", "transfer_to_tester_agent", "transfer_to_database_agent"],
+        tools: ["read_file", "list_directory", "finalize_function", "create_task_list", "transfer_to_coder_agent", "transfer_to_tester_agent", "transfer_to_database_agent", "transfer_to_research_agent"],
         description: "Manages the entire coding workflow and coordinates between other agents"
       },
       {
@@ -110,6 +110,16 @@ function App() {
         },
         tools: ["setup_test_environment", "write_unit_tests", "run_unit_tests", "transfer_to_orchestrator_agent"],
         description: "Writes comprehensive unit tests and validates code functionality"
+      },
+      {
+        id: "research",
+        capabilities: ["web_search", "gather_information", "research"],
+        model: {
+          provider: "openai",
+          id: "gpt-4o-mini"
+        },
+        tools: ["web_search", "transfer_to_orchestrator_agent"],
+        description: "Searches the web and gathers current information from online sources"
       },
       {
         id: "database",
