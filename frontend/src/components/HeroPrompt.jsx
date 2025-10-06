@@ -104,7 +104,7 @@ const HeroPrompt = ({ onSubmitPrompt, isLoading, isSubmitted = false, submittedP
           <button
             type="submit"
             disabled={!prompt.trim() || isLoading || isUploading}
-            className={`flex items-center justify-center aspect-square rounded-full ml-3 h-14 transition-all ${
+            className={`flex items-center justify-center aspect-square rounded-full ml-3 h-14 w-14 transition-all ${
               !prompt.trim() || isLoading || isUploading
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : 'bg-gray-900 text-white hover:opacity-90'
@@ -113,8 +113,9 @@ const HeroPrompt = ({ onSubmitPrompt, isLoading, isSubmitted = false, submittedP
           >
             {isLoading || isUploading ? '…' : (
               <svg
-                width="22"
-                height="22"
+                className="flex-shrink-0"
+                width="20"
+                height="20"
                 viewBox="0 0 24 24"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"

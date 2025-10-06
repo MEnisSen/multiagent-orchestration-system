@@ -77,6 +77,42 @@ def _run_async_safely(coro):
             pass
 
 
+def _ensure_vector_index(
+    driver,
+    index_name: str = "chunk_index",
+    label: str = "Chunk",
+    embedding_property: str = "embedding",
+    dimensions: int = 1536,
+    similarity: str = "cosine",
+):
+    """Best-effort creation of a Neo4j native vector index for Chunk embeddings.
+
+    Safe to call repeatedly; it will no-op if the index already exists.
+    """
+    try:
+        with driver.session() as session:
+            exists = session.run(
+                """
+                SHOW INDEXES YIELD name
+                WHERE name = $name
+                RETURN name
+                """,
+                {"name": index_name},
+            ).peek() is not None
+            if exists:
+                return
+            cypher = (
+                f"CREATE VECTOR INDEX {index_name} IF NOT EXISTS "
+                f"FOR (n:`{label}`) ON (n.`{embedding_property}`) "
+                f"OPTIONS {{indexConfig: {{`vector.dimensions`: {dimensions}, "
+                f"`vector.similarity_function`: '{similarity}'}}}}"
+            )
+            session.run(cypher)
+    except Exception:
+        # Non-fatal; retrieval will error explicitly if the index is missing
+        pass
+
+
 def kg_updater(
     text_content: Annotated[str, "The text content to process and add to the knowledge graph"],
     source_info: Annotated[str, "Information about the source (e.g., document name, URL, timestamp)"],
@@ -199,7 +235,7 @@ def kg_updater(
             chunk_embedder = TextChunkEmbedder(embedder=embedder)
             embedded_chunks = await chunk_embedder.run(text_chunks=chunks_result)
             
-            # CRITICAL FIX: Set metadata in the exact format the lexical graph expects
+            # CRITICAL FIX: Ensure metadata contains only primitive values (Neo4j rejects nested maps)
             if hasattr(embedded_chunks, 'chunks') and embedded_chunks.chunks:
                 for i, chunk in enumerate(embedded_chunks.chunks):
                     if not hasattr(chunk, 'metadata'):
@@ -211,32 +247,16 @@ def kg_updater(
                     if 'embedding' in chunk.metadata:
                         del chunk.metadata['embedding']
                     
-                    # Set the document metadata structure the lexical graph expects
-                    # The key issue: it needs BOTH 'document' dict AND 'document_id' at root level
+                    # Set flat document metadata. Avoid nested dicts to satisfy Neo4j property constraints
                     chunk.metadata.update({
                         'document_id': source_info,
-                        'document': {
-                            'id': source_info,
-                            'path': source_info,
-                            'title': source_info,
-                        },
+                        'document_path': source_info,
+                        'document_title': source_info,
                         'source': source_info,
                         'chunk_id': f"{source_info}_chunk_{i}",
                         'chunk_index': i,
                     })
-            
-            # Also try setting metadata at the container level
-            if hasattr(embedded_chunks, 'metadata'):
-                if not embedded_chunks.metadata:
-                    embedded_chunks.metadata = {}
-                embedded_chunks.metadata.update({
-                    'document_id': source_info,
-                    'document': {
-                        'id': source_info,
-                        'path': source_info,
-                        'title': source_info,
-                    }
-                })
+            # Avoid setting nested metadata on the container as well
             
             # Step 3: Schema Builder (if schema provided)
             schema = None
@@ -295,7 +315,8 @@ def kg_updater(
             else:
                 graph = await extractor.run(chunks=embedded_chunks)
             
-            # Step 5: Knowledge Graph Writer
+            # Step 5: Ensure vector index exists for later retrieval, then write
+            _ensure_vector_index(driver)
             writer = Neo4jWriter(driver)
             write_result = await writer.run(graph)
             
@@ -361,6 +382,8 @@ def kg_retriever(
             results = []
             
             if retrieval_type == "vector":
+                # Ensure vector index before vector search
+                _ensure_vector_index(driver)
                 # Simple vector similarity search
                 retriever = VectorRetriever(
                     driver=driver,
@@ -396,6 +419,8 @@ def kg_retriever(
                 LIMIT $top_k
                 """
                 
+                # Ensure vector index before vector search
+                _ensure_vector_index(driver)
                 retriever = VectorCypherRetriever(
                     driver=driver,
                     index_name="chunk_index",

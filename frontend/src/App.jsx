@@ -447,39 +447,42 @@ function App() {
                       </h2>
                     </div>
                     <div className="flex-1 overflow-y-auto px-6 py-4 bg-white">
-                      {messages.filter(msg => msg.from === 'orchestrator' && msg.to === 'user').length === 0 ? (
+                      {messages.filter(msg => msg.from === 'Orchestrator Agent' || msg.from === 'orchestrator').length === 0 ? (
                         <div className="text-center py-8 text-gray-500">
                           <div className="text-3xl mb-2">🤖</div>
                           <div className="text-sm">No updates yet</div>
                           <div className="text-xs text-gray-400 mt-1">Orchestrator responses will appear here</div>
                         </div>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           {messages
-                            .filter(msg => msg.from === 'orchestrator' && msg.to === 'user')
+                            .filter(msg => msg.from === 'Orchestrator Agent' || msg.from === 'orchestrator')
                             .map((msg, index) => (
                               <div 
                                 key={msg.id || index}
-                                className="bg-gray-50 rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                                className="bg-blue-50 rounded-lg border-2 border-blue-200 p-4 hover:shadow-md transition-shadow"
                               >
                                 <div className="flex items-start space-x-3">
                                   <div className="flex-shrink-0">
-                                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                                      <span className="text-white text-sm">🎯</span>
-                                    </div>
+                                    <div className="text-2xl">🎯</div>
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between mb-2">
-                                      <span className="text-sm font-semibold text-gray-800">Orchestrator</span>
+                                      <span className="text-sm font-bold text-blue-700">Orchestrator Agent</span>
                                       {msg.timestamp && (
                                         <span className="text-xs text-gray-500">
                                           {new Date(msg.timestamp).toLocaleTimeString()}
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-sm text-gray-700 whitespace-pre-wrap break-words">
-                                      {msg.content}
+                                    <div className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+                                      {msg.content || msg.payload?.goal || msg.payload?.result || JSON.stringify(msg)}
                                     </div>
+                                    {msg.to && msg.to !== 'broadcast' && (
+                                      <div className="mt-2 text-xs text-gray-600">
+                                        → {msg.to}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
