@@ -9,7 +9,7 @@ A multi-agent system powered by Haystack AI that coordinates specialized agents 
 - **Orchestrator**: Plans workflows and coordinates other agents
 - **Coder**: Implements code and fixes issues
 - **Tester**: Writes and runs unit tests
-- **Database**: Manages Neo4j knowledge graph operations <font color="red">Neo4j integration not done yet.</font>
+- **Database**: Manages Neo4j knowledge graph operations :red_circle:_Neo4j integration not done yet._:red_circle:
 - **Research**: Performs web searches and gathers information
 
 ## Quick Setup
